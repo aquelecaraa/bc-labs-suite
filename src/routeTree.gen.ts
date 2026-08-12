@@ -10,33 +10,150 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BcAiRouteImport } from './routes/bc-ai'
+import { Route as ClientesRouteImport } from './routes/clientes'
+import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
+import { Route as DespesasRouteImport } from './routes/despesas'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as RelatoriosRouteImport } from './routes/relatorios'
+import { Route as VendasRouteImport } from './routes/vendas'
+import { Route as ClientesIndexRouteImport } from './routes/clientes.index'
+import { Route as ClientesClientIdRouteImport } from './routes/clientes.$clientId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BcAiRoute = BcAiRouteImport.update({
+  id: '/bc-ai',
+  path: '/bc-ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClientesRoute = ClientesRouteImport.update({
+  id: '/clientes',
+  path: '/clientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DespesasRoute = DespesasRouteImport.update({
+  id: '/despesas',
+  path: '/despesas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RelatoriosRoute = RelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VendasRoute = VendasRouteImport.update({
+  id: '/vendas',
+  path: '/vendas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClientesIndexRoute = ClientesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ClientesRoute,
+} as any)
+const ClientesClientIdRoute = ClientesClientIdRouteImport.update({
+  id: '/$clientId',
+  path: '/$clientId',
+  getParentRoute: () => ClientesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/bc-ai': typeof BcAiRoute
+  '/clientes': typeof ClientesRouteWithChildren
+  '/configuracoes': typeof ConfiguracoesRoute
+  '/despesas': typeof DespesasRoute
+  '/login': typeof LoginRoute
+  '/relatorios': typeof RelatoriosRoute
+  '/vendas': typeof VendasRoute
+  '/clientes/$clientId': typeof ClientesClientIdRoute
+  '/clientes/': typeof ClientesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bc-ai': typeof BcAiRoute
+  '/configuracoes': typeof ConfiguracoesRoute
+  '/despesas': typeof DespesasRoute
+  '/login': typeof LoginRoute
+  '/relatorios': typeof RelatoriosRoute
+  '/vendas': typeof VendasRoute
+  '/clientes/$clientId': typeof ClientesClientIdRoute
+  '/clientes': typeof ClientesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/bc-ai': typeof BcAiRoute
+  '/clientes': typeof ClientesRouteWithChildren
+  '/configuracoes': typeof ConfiguracoesRoute
+  '/despesas': typeof DespesasRoute
+  '/login': typeof LoginRoute
+  '/relatorios': typeof RelatoriosRoute
+  '/vendas': typeof VendasRoute
+  '/clientes/$clientId': typeof ClientesClientIdRoute
+  '/clientes/': typeof ClientesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/bc-ai'
+    | '/clientes'
+    | '/configuracoes'
+    | '/despesas'
+    | '/login'
+    | '/relatorios'
+    | '/vendas'
+    | '/clientes/$clientId'
+    | '/clientes/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/bc-ai'
+    | '/configuracoes'
+    | '/despesas'
+    | '/login'
+    | '/relatorios'
+    | '/vendas'
+    | '/clientes/$clientId'
+    | '/clientes'
+  id:
+    | '__root__'
+    | '/'
+    | '/bc-ai'
+    | '/clientes'
+    | '/configuracoes'
+    | '/despesas'
+    | '/login'
+    | '/relatorios'
+    | '/vendas'
+    | '/clientes/$clientId'
+    | '/clientes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BcAiRoute: typeof BcAiRoute
+  ClientesRoute: typeof ClientesRouteWithChildren
+  ConfiguracoesRoute: typeof ConfiguracoesRoute
+  DespesasRoute: typeof DespesasRoute
+  LoginRoute: typeof LoginRoute
+  RelatoriosRoute: typeof RelatoriosRoute
+  VendasRoute: typeof VendasRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +165,95 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bc-ai': {
+      id: '/bc-ai'
+      path: '/bc-ai'
+      fullPath: '/bc-ai'
+      preLoaderRoute: typeof BcAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clientes': {
+      id: '/clientes'
+      path: '/clientes'
+      fullPath: '/clientes'
+      preLoaderRoute: typeof ClientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/configuracoes': {
+      id: '/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof ConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/despesas': {
+      id: '/despesas'
+      path: '/despesas'
+      fullPath: '/despesas'
+      preLoaderRoute: typeof DespesasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/relatorios': {
+      id: '/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof RelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vendas': {
+      id: '/vendas'
+      path: '/vendas'
+      fullPath: '/vendas'
+      preLoaderRoute: typeof VendasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clientes/': {
+      id: '/clientes/'
+      path: '/'
+      fullPath: '/clientes/'
+      preLoaderRoute: typeof ClientesIndexRouteImport
+      parentRoute: typeof ClientesRoute
+    }
+    '/clientes/$clientId': {
+      id: '/clientes/$clientId'
+      path: '/$clientId'
+      fullPath: '/clientes/$clientId'
+      preLoaderRoute: typeof ClientesClientIdRouteImport
+      parentRoute: typeof ClientesRoute
+    }
   }
 }
 
+interface ClientesRouteChildren {
+  ClientesClientIdRoute: typeof ClientesClientIdRoute
+  ClientesIndexRoute: typeof ClientesIndexRoute
+}
+
+const ClientesRouteChildren: ClientesRouteChildren = {
+  ClientesClientIdRoute: ClientesClientIdRoute,
+  ClientesIndexRoute: ClientesIndexRoute,
+}
+
+const ClientesRouteWithChildren = ClientesRoute._addFileChildren(
+  ClientesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BcAiRoute: BcAiRoute,
+  ClientesRoute: ClientesRouteWithChildren,
+  ConfiguracoesRoute: ConfiguracoesRoute,
+  DespesasRoute: DespesasRoute,
+  LoginRoute: LoginRoute,
+  RelatoriosRoute: RelatoriosRoute,
+  VendasRoute: VendasRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
