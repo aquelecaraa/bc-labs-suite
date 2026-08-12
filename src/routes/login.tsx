@@ -158,9 +158,9 @@ function Field({
   value: string;
   onChange: (v: string) => void;
   icon: React.ReactNode;
-  type?: string;
-  placeholder?: string;
-  error?: string;
+  type?: string | undefined;
+  placeholder?: string | undefined;
+  error?: string | undefined;
 }) {
   return (
     <div className="space-y-1.5">

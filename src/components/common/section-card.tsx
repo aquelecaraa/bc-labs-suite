@@ -10,12 +10,12 @@ export function SectionCard({
   className,
   bodyClassName,
 }: {
-  title?: string;
-  description?: string;
+  title?: string | undefined;
+  description?: string | undefined;
   actions?: ReactNode;
   children: ReactNode;
-  className?: string;
-  bodyClassName?: string;
+  className?: string | undefined;
+  bodyClassName?: string | undefined;
 }) {
   return (
     <section className={cn("surface animate-rise overflow-hidden", className)}>

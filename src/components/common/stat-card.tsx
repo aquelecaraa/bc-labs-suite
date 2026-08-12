@@ -16,9 +16,9 @@ export function StatCard({
   label: string;
   value: string;
   icon: LucideIcon;
-  change?: number;
-  hint?: string;
-  loading?: boolean;
+  change?: number | undefined;
+  hint?: string | undefined;
+  loading?: boolean | undefined;
   invertChange?: boolean;
 }) {
   const positive = (change ?? 0) > 0;
