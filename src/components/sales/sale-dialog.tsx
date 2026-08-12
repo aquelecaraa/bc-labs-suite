@@ -35,7 +35,7 @@ const schema = z.object({
   costs: z.number().nonnegative("Custo inválido"),
   payment_method: z.string().min(1),
   status: z.enum(["paid", "pending", "canceled"]),
-  notes: z.string().max(500).optional(),
+  notes: z.string().max(500),
 });
 
 const emptyForm = () => ({

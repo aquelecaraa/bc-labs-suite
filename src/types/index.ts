@@ -15,7 +15,7 @@ export interface Client extends BaseRecord {
   email: string;
   phone: string;
   status: ClientStatus;
-  notes?: string;
+  notes?: string | undefined;
 }
 
 export interface Sale extends BaseRecord {
@@ -27,7 +27,7 @@ export interface Sale extends BaseRecord {
   costs: number;
   payment_method: string;
   status: SaleStatus;
-  notes?: string;
+  notes?: string | undefined;
 }
 
 export type ExpenseCategory =
@@ -59,8 +59,8 @@ export interface Expense extends BaseRecord {
   amount: number;
   date: string;
   recurring: boolean;
-  ai_vendor?: AiVendor | null;
-  notes?: string;
+  ai_vendor?: AiVendor | null | undefined;
+  notes?: string | undefined;
 }
 
 export type AiVendor = "OpenAI" | "Claude" | "Lovable" | "Gemini" | "APIs" | "Outras IAs";
