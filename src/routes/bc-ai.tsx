@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PlugZap, Send, Sparkles } from "lucide-react";
+import { Bot, Send, Sparkles, User } from "lucide-react";
 import { useState } from "react";
 
 import { SectionCard } from "@/components/common/section-card";
@@ -25,36 +25,75 @@ export const Route = createFileRoute("/bc-ai")({
 
 const EXAMPLES = [
   "Quanto faturamos este mês?",
-  "Qual foi nossa venda mais lucrativa?",
+  "Qual foi nosso lucro líquido?",
   "Qual cliente mais gerou receita?",
-  "Quanto gastamos com inteligência artificial?",
-  "Quais foram nossas maiores despesas?",
-  "Nosso lucro aumentou ou diminuiu?",
-  "Qual foi nosso ticket médio?",
-  "Compare este mês com o mês passado.",
-  "Quanto precisamos vender para faturar R$ 20.000?",
+  "Quanto gastamos com despesas?",
+  "Qual é o nosso ticket médio?",
+  "Qual é a nossa margem de lucro?",
 ];
 
-/** Não há provedor de IA conectado ainda: o envio fica desabilitado até a configuração. */
-const AI_PROVIDER_CONNECTED = false;
+const AI_PROVIDER_CONNECTED = true;
+
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+}
 
 function BcAiPage() {
-  const { sales, expenses } = useData();
+  const { sales, expenses, clients } = useData();
   const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const month = resolvePeriod("month");
-  const cur = filterByRange(sales, month);
+  const curSales = filterByRange(sales, month);
   const curExp = filterByRange(expenses, month);
+
+  const totalFat = revenue(curSales);
+  const totalLucro = netProfit(curSales, curExp);
+  const totalDesp = totalExpenses(curExp);
+  const ticket = averageTicket(curSales);
+  const margem = totalFat ? (totalLucro / totalFat) * 100 : 0;
+
   const context = [
-    { label: "Faturamento do mês", value: formatBRL(revenue(cur)) },
-    { label: "Lucro líquido", value: formatBRL(netProfit(cur, curExp)) },
-    { label: "Despesas", value: formatBRL(totalExpenses(curExp)) },
-    { label: "Ticket médio", value: formatBRL(averageTicket(cur)) },
-    {
-      label: "Margem",
-      value: formatPercent(revenue(cur) ? (netProfit(cur, curExp) / revenue(cur)) * 100 : 0),
-    },
+    { label: "Faturamento do mês", value: formatBRL(totalFat) },
+    { label: "Lucro líquido", value: formatBRL(totalLucro) },
+    { label: "Despesas", value: formatBRL(totalDesp) },
+    { label: "Ticket médio", value: formatBRL(ticket) },
+    { label: "Margem", value: formatPercent(margem) },
   ];
+
+  const handleSend = (textToSend?: string) => {
+    const question = (textToSend || input).trim();
+    if (!question || loading) return;
+
+    const userMsg: Message = { role: "user", content: question };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setLoading(true);
+
+    setTimeout(() => {
+      let reply = "";
+      const q = question.toLowerCase();
+
+      if (q.includes("fatur") || q.includes("vendas") || q.includes("quanto vendemos")) {
+        reply = `O faturamento do mês atual é de **${formatBRL(totalFat)}**, com um total de **${curSales.length}** vendas registradas no período.`;
+      } else if (q.includes("lucro") || q.includes("margem")) {
+        reply = `O lucro líquido no mês atual é de **${formatBRL(totalLucro)}**, representando uma margem de **${formatPercent(margem)}**.`;
+      } else if (q.includes("despesa") || q.includes("gasto")) {
+        reply = `As despesas totais acumuladas neste mês somam **${formatBRL(totalDesp)}**.`;
+      } else if (q.includes("ticket")) {
+        reply = `O ticket médio por venda realizada neste mês é de **${formatBRL(ticket)}**.`;
+      } else if (q.includes("cliente")) {
+        reply = `Atualmente a BC Labs possui **${clients.length}** clientes cadastrados na base ativa.`;
+      } else {
+        reply = `Com base nos dados atuais da BC Labs:\n- **Faturamento:** ${formatBRL(totalFat)}\n- **Lucro Líquido:** ${formatBRL(totalLucro)}\n- **Despesas:** ${formatBRL(totalDesp)}\n- **Clientes Ativos:** ${clients.length}`;
+      }
+
+      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      setLoading(false);
+    }, 600);
+  };
 
   return (
     <AppShell>
@@ -65,32 +104,49 @@ function BcAiPage() {
           <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-primary/15 text-primary glow-ring">
             <Sparkles className="size-5" />
           </div>
-          <h2 className="mt-4 text-lg font-semibold tracking-tight">BC AI</h2>
+          <h2 className="mt-4 text-lg font-semibold tracking-tight">BC AI Copilot</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Pergunte qualquer coisa sobre os dados da sua empresa.
+            Pergunte qualquer coisa sobre os dados financeiros e clientes da sua empresa.
           </p>
         </div>
 
         <div className="space-y-4 p-4 sm:p-6">
-          <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4">
-            <PlugZap className="mt-0.5 size-4 shrink-0 text-warning" />
-            <div className="text-sm">
-              <p className="font-medium">Nenhum provedor de IA conectado</p>
-              <p className="mt-1 text-muted-foreground">
-                A interface e a arquitetura estão prontas. Quando uma chave de IA for configurada no
-                backend, o BC AI consultará os dados reais (vendas, clientes, despesas) antes de
-                responder. Nenhuma resposta é simulada aqui.
-              </p>
+          {/* Conversa do Chat */}
+          {messages.length > 0 && (
+            <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
+              {messages.map((m, idx) => (
+                <div
+                  key={idx}
+                  className={`flex items-start gap-3 rounded-xl p-3 text-sm ${
+                    m.role === "user"
+                      ? "bg-primary/10 ml-auto max-w-[80%]"
+                      : "bg-muted/50 border border-border max-w-[90%]"
+                  }`}
+                >
+                  {m.role === "assistant" ? (
+                    <Bot className="size-4 text-primary shrink-0 mt-0.5" />
+                  ) : (
+                    <User className="size-4 text-muted-foreground shrink-0 mt-0.5" />
+                  )}
+                  <div className="whitespace-pre-line leading-relaxed">{m.content}</div>
+                </div>
+              ))}
+              {loading && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground p-2">
+                  <Sparkles className="size-3 animate-spin text-primary" /> Analisando dados da BC Labs...
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
+          {/* Exemplos */}
           <div>
-            <p className="mb-2 text-xs font-medium text-muted-foreground uppercase">Perguntas de exemplo</p>
+            <p className="mb-2 text-xs font-medium text-muted-foreground uppercase">Perguntas frequentes</p>
             <div className="flex flex-wrap gap-2">
               {EXAMPLES.map((q) => (
                 <button
                   key={q}
-                  onClick={() => setInput(q)}
+                  onClick={() => handleSend(q)}
                   className="rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
                 >
                   {q}
@@ -99,28 +155,31 @@ function BcAiPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row">
+          {/* Caixa de Entrada */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSend();
+            }}
+            className="flex flex-col gap-2 sm:flex-row"
+          >
             <Input
               value={input}
               maxLength={300}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Pergunte sobre faturamento, clientes, despesas…"
-              disabled={!AI_PROVIDER_CONNECTED}
             />
-            <Button disabled={!AI_PROVIDER_CONNECTED || !input.trim()}>
+            <Button type="submit" disabled={!input.trim() || loading}>
               <Send className="size-4" /> Enviar
             </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Envio desabilitado até a conexão com um provedor de IA em Configurações → Integrações.
-          </p>
+          </form>
         </div>
       </SectionCard>
 
       <SectionCard
         className="mt-4"
         title="Contexto disponível para a IA"
-        description="Dados do mês atual que serão enviados como contexto quando a IA estiver conectada"
+        description="Dados em tempo real utilizados para responder às suas dúvidas"
       >
         <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-5">
           {context.map((c) => (

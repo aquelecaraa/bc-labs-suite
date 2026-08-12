@@ -1,7 +1,9 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ChevronRight, Plus, Search, Trash2, UserPlus, Users, Wallet, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
+import { ConfirmDelete } from "@/components/common/confirm-delete";
 import { ClientStatusBadge } from "@/components/common/status-badge";
 import { EmptyState } from "@/components/common/empty-state";
 import { SectionCard } from "@/components/common/section-card";
@@ -11,9 +13,11 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { isPaid } from "@/lib/finance";
 import { formatBRL, formatDate, formatNumber } from "@/lib/format";
 import { useData } from "@/store/data-store";
+import type { Client } from "@/types";
 
 export const Route = createFileRoute("/clientes/")({
   head: () => ({
@@ -28,15 +32,13 @@ export const Route = createFileRoute("/clientes/")({
 });
 
 function ClientsPage() {
-  const storeData = useData() as any;
-  const clients = storeData.clients || [];
-  const sales = storeData.sales || [];
-  const loading = storeData.loading;
+  const { clients, sales, deleteClient, addClient, loading } = useData();
 
   const [query, setQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [toDelete, setToDelete] = useState<Client | null>(null);
 
-  // Estados do formulário de novo cliente
+  // Formulário de novo cliente
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -48,31 +50,19 @@ function ClientsPage() {
 
     try {
       setIsSaving(true);
-
-      if (typeof storeData.addClient === "function") {
-        await storeData.addClient({
-          name: name.trim(),
-          email: email.trim() || null,
-          phone: phone.trim() || null,
-          status: "active",
-        });
-      } else {
-        window.location.reload();
-        return;
-      }
+      await addClient({
+        name: name.trim(),
+        email: email.trim() || "",
+        phone: phone.trim() || "",
+        status: "active",
+      });
 
       setName("");
       setEmail("");
       setPhone("");
       setIsModalOpen(false);
-
-      if (typeof storeData.refresh === "function") {
-        await storeData.refresh();
-      } else {
-        window.location.reload();
-      }
-    } catch (err: any) {
-      alert("Ocorreu um erro ao cadastrar o cliente: " + (err.message || err));
+    } catch (err) {
+      console.error(err);
     } finally {
       setIsSaving(false);
     }
@@ -81,26 +71,26 @@ function ClientsPage() {
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return clients
-      .map((c: any) => {
-        const cs = sales.filter((s: any) => s.client_id === c.id && isPaid(s));
-        const total = cs.reduce((a: number, s: any) => a + s.gross, 0);
-        const last = cs.map((s: any) => s.date).sort().at(-1);
+      .map((c) => {
+        const cs = sales.filter((s) => s.client_id === c.id && isPaid(s));
+        const total = cs.reduce((a, s) => a + s.gross, 0);
+        const last = cs.map((s) => s.date).sort().at(-1);
         return { client: c, total, purchases: cs.length, last };
       })
-      .filter(({ client }: any) =>
+      .filter(({ client }) =>
         q ? `${client.name} ${client.email || ""} ${client.phone || ""}`.toLowerCase().includes(q) : true,
       )
-      .sort((a: any, b: any) => b.total - a.total);
+      .sort((a, b) => b.total - a.total);
   }, [clients, sales, query]);
 
   const now = new Date();
-  const newThisMonth = clients.filter((c: any) => {
+  const newThisMonth = clients.filter((c) => {
     const d = new Date(c.created_at);
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).length;
-  const active = clients.filter((c: any) => c.status === "active").length;
-  const totalRevenue = rows.reduce((a: number, r: any) => a + r.total, 0);
-  const totalPurchases = rows.reduce((a: number, r: any) => a + r.purchases, 0);
+  const active = clients.filter((c) => c.status === "active").length;
+  const totalRevenue = rows.reduce((a, r) => a + r.total, 0);
+  const totalPurchases = rows.reduce((a, r) => a + r.purchases, 0);
 
   return (
     <AppShell>
@@ -109,7 +99,7 @@ function ClientsPage() {
         description="Quem gera receita para a BC Labs e como cada conta evolui."
         actions={
           <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-1.5">
-            <Plus className="size-4" /> Novo Cliente
+            <Plus className="size-4" /> Novo cliente
           </Button>
         }
       />
@@ -166,17 +156,17 @@ function ClientsPage() {
                   <th className="px-3 py-3 text-right font-medium">Compras</th>
                   <th className="px-3 py-3 font-medium">Última compra</th>
                   <th className="px-3 py-3 font-medium">Status</th>
-                  <th className="px-5 py-3" />
+                  <th className="px-5 py-3 text-right font-medium">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ client, total, purchases, last }: any) => (
+                {rows.map(({ client, total, purchases, last }) => (
                   <tr key={client.id} className="group border-b border-border/60 transition-colors last:border-0 hover:bg-accent/40">
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3 font-medium">
                       <Link
                         to="/clientes/$clientId"
                         params={{ clientId: client.id }}
-                        className="font-medium hover:text-primary"
+                        className="hover:text-primary"
                       >
                         {client.name}
                       </Link>
@@ -192,34 +182,31 @@ function ClientsPage() {
                       <ClientStatusBadge status={client.status} />
                     </td>
                     <td className="px-5 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (confirm(`Tem certeza que deseja excluir o cliente ${client.name}?`)) {
-                              if (typeof storeData.deleteClient === "function") {
-                                await storeData.deleteClient(client.id);
-                              } else {
-                                window.location.reload();
-                              }
-                            }
-                          }}
-                          className="p-1 text-muted-foreground hover:text-red-500 transition-colors"
-                          title="Excluir cliente"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-muted-foreground hover:text-destructive"
+                              onClick={() => setToDelete(client)}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Excluir</TooltipContent>
+                        </Tooltip>
 
-                        <Link
-                          to="/clientes/$clientId"
-                          params={{ clientId: client.id }}
-                          aria-label={`Abrir ${client.name}`}
-                          className="inline-flex text-muted-foreground transition-colors group-hover:text-primary"
-                        >
-                          <ChevronRight className="size-4" />
-                        </Link>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" asChild className="size-8 text-muted-foreground hover:text-foreground">
+                              <Link to="/clientes/$clientId" params={{ clientId: client.id }}>
+                                <ChevronRight className="size-4" />
+                              </Link>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Detalhes</TooltipContent>
+                        </Tooltip>
                       </div>
                     </td>
                   </tr>
@@ -230,7 +217,7 @@ function ClientsPage() {
         )}
       </SectionCard>
 
-      {/* Modal de Cadastro de Novo Cliente */}
+      {/* Modal de Novo Cliente */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
@@ -297,6 +284,20 @@ function ClientsPage() {
           </div>
         </div>
       )}
+
+      {/* ConfirmDelete Oficial da UI */}
+      <ConfirmDelete
+        open={!!toDelete}
+        onOpenChange={(v) => !v && setToDelete(null)}
+        title="Excluir cliente?"
+        description={`O cliente ${toDelete?.name || ""} e seus históricos serão removidos da base.`}
+        onConfirm={() => {
+          if (toDelete) {
+            deleteClient(toDelete.id);
+          }
+          setToDelete(null);
+        }}
+      />
     </AppShell>
   );
 }
