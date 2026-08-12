@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ChevronRight, Search, UserPlus, Users, Wallet } from "lucide-react";
+import { ChevronRight, Plus, Search, UserPlus, Users, Wallet, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { ClientStatusBadge } from "@/components/common/status-badge";
@@ -8,6 +8,7 @@ import { SectionCard } from "@/components/common/section-card";
 import { StatCard } from "@/components/common/stat-card";
 import { AppShell } from "@/components/layout/app-shell";
 import { PageHeader } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isPaid } from "@/lib/finance";
@@ -27,36 +28,84 @@ export const Route = createFileRoute("/clientes/")({
 });
 
 function ClientsPage() {
-  const { clients, sales, loading } = useData();
+  const { clients, sales, loading, refresh, addClient } = useData() as any;
   const [query, setQuery] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Estados do formulário de novo cliente
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleCreateClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    try {
+      setIsSaving(true);
+      
+      // Se a store tiver a função addClient, usamos ela diretamente
+      if (addClient) {
+        await addClient({
+          name: name.trim(),
+          email: email.trim() || null,
+          phone: phone.trim() || null,
+          status: "active",
+        });
+      } else {
+        alert("A função de adicionar cliente precisa de estar ligada à Data Store.");
+        return;
+      }
+
+      // Limpa os campos, fecha o modal e recarrega os dados
+      setName("");
+      setEmail("");
+      setPhone("");
+      setIsModalOpen(false);
+      if (refresh) await refresh();
+    } catch (err: any) {
+      alert("Ocorreu um erro ao cadastrar o cliente: " + (err.message || err));
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return clients
-      .map((c) => {
-        const cs = sales.filter((s) => s.client_id === c.id && isPaid(s));
-        const total = cs.reduce((a, s) => a + s.gross, 0);
-        const last = cs.map((s) => s.date).sort().at(-1);
+      .map((c: any) => {
+        const cs = sales.filter((s: any) => s.client_id === c.id && isPaid(s));
+        const total = cs.reduce((a: number, s: any) => a + s.gross, 0);
+        const last = cs.map((s: any) => s.date).sort().at(-1);
         return { client: c, total, purchases: cs.length, last };
       })
-      .filter(({ client }) =>
-        q ? `${client.name} ${client.email} ${client.phone}`.toLowerCase().includes(q) : true,
+      .filter(({ client }: any) =>
+        q ? `${client.name} ${client.email || ""} ${client.phone || ""}`.toLowerCase().includes(q) : true,
       )
-      .sort((a, b) => b.total - a.total);
+      .sort((a: any, b: any) => b.total - a.total);
   }, [clients, sales, query]);
 
   const now = new Date();
-  const newThisMonth = clients.filter((c) => {
+  const newThisMonth = clients.filter((c: any) => {
     const d = new Date(c.created_at);
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).length;
-  const active = clients.filter((c) => c.status === "active").length;
-  const totalRevenue = rows.reduce((a, r) => a + r.total, 0);
-  const totalPurchases = rows.reduce((a, r) => a + r.purchases, 0);
+  const active = clients.filter((c: any) => c.status === "active").length;
+  const totalRevenue = rows.reduce((a: number, r: any) => a + r.total, 0);
+  const totalPurchases = rows.reduce((a: number, r: any) => a + r.purchases, 0);
 
   return (
     <AppShell>
-      <PageHeader title="Clientes" description="Quem gera receita para a BC Labs e como cada conta evolui." />
+      <PageHeader
+        title="Clientes"
+        description="Quem gera receita para a BC Labs e como cada conta evolui."
+        actions={
+          <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-1.5">
+            <Plus className="size-4" /> Novo Cliente
+          </Button>
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Clientes ativos" value={formatNumber(active)} icon={Users} hint="base atual" loading={loading} />
@@ -114,7 +163,7 @@ function ClientsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ client, total, purchases, last }) => (
+                {rows.map(({ client, total, purchases, last }: any) => (
                   <tr key={client.id} className="group border-b border-border/60 transition-colors last:border-0 hover:bg-accent/40">
                     <td className="px-5 py-3">
                       <Link
@@ -126,8 +175,8 @@ function ClientsPage() {
                       </Link>
                     </td>
                     <td className="px-3 py-3 text-muted-foreground">
-                      <div>{client.email}</div>
-                      <div className="text-xs">{client.phone}</div>
+                      <div>{client.email || "—"}</div>
+                      <div className="text-xs">{client.phone || "—"}</div>
                     </td>
                     <td className="px-3 py-3 text-right tabular-nums">{formatBRL(total)}</td>
                     <td className="px-3 py-3 text-right tabular-nums">{formatNumber(purchases)}</td>
@@ -152,6 +201,74 @@ function ClientsPage() {
           </div>
         )}
       </SectionCard>
+
+      {/* Modal de Cadastro de Novo Cliente */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
+            <div className="flex items-center justify-between pb-4 border-b border-border">
+              <h2 className="text-lg font-semibold">Cadastrar Novo Cliente</h2>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateClient} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  Nome Completo *
+                </label>
+                <Input
+                  required
+                  placeholder="Ex: João Silva"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  E-mail
+                </label>
+                <Input
+                  type="email"
+                  placeholder="joao@exemplo.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  Telefone / WhatsApp
+                </label>
+                <Input
+                  placeholder="(11) 99999-9999"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsModalOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving ? "Salvando..." : "Cadastrar Cliente"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
