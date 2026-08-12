@@ -4,26 +4,22 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import type { Client, Expense, Sale } from "@/types";
 
-/**
- * Camada de dados da BC Labs, agora ligada ao Supabase (Postgres + Realtime).
- * Todos os usuários autenticados (os 3 sócios) compartilham a mesma base.
- */
-
 interface DataState {
   clients: Client[];
   sales: Sale[];
   expenses: Expense[];
   loading: boolean;
-  addSale: (input: Omit<Sale, keyof TimeStamps | "id">) => void;
-  updateSale: (id: string, input: Partial<Sale>) => void;
-  deleteSale: (id: string) => void;
-  addExpense: (input: Omit<Expense, keyof TimeStamps | "id">) => void;
-  updateExpense: (id: string, input: Partial<Expense>) => void;
-  deleteExpense: (id: string) => void;
-  addClient: (input: Omit<Client, keyof TimeStamps | "id">) => void;
-  updateClient: (id: string, input: Partial<Client>) => void;
-  deleteClient: (id: string) => void;
+  addSale: (input: Omit<Sale, keyof TimeStamps | "id">) => Promise<void>;
+  updateSale: (id: string, input: Partial<Sale>) => Promise<void>;
+  deleteSale: (id: string) => Promise<void>;
+  addExpense: (input: Omit<Expense, keyof TimeStamps | "id">) => Promise<void>;
+  updateExpense: (id: string, input: Partial<Expense>) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
+  addClient: (input: Omit<Client, keyof TimeStamps | "id">) => Promise<void>;
+  updateClient: (id: string, input: Partial<Client>) => Promise<void>;
+  deleteClient: (id: string) => Promise<void>;
   clientById: (id: string) => Client | undefined;
+  refresh: () => Promise<void>;
 }
 
 type TimeStamps = { created_at: string; updated_at: string };
@@ -41,49 +37,40 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
 
+  async function loadAll() {
+    const [clientsRes, salesRes, expensesRes] = await Promise.all([
+      supabase.from("clients").select("*").order("created_at", { ascending: false }),
+      supabase.from("sales").select("*").order("date", { ascending: false }),
+      supabase.from("expenses").select("*").order("date", { ascending: false }),
+    ]);
+
+    if (clientsRes.error) reportError("carregar clientes", clientsRes.error);
+    else setClients(clientsRes.data as Client[]);
+
+    if (salesRes.error) reportError("carregar vendas", salesRes.error);
+    else setSales(salesRes.data as Sale[]);
+
+    if (expensesRes.error) reportError("carregar despesas", expensesRes.error);
+    else setExpenses(expensesRes.data as Expense[]);
+
+    setLoading(false);
+  }
+
   useEffect(() => {
     let cancelled = false;
 
-    async function loadAll() {
-      const [clientsRes, salesRes, expensesRes] = await Promise.all([
-        supabase.from("clients").select("*").order("created_at", { ascending: false }),
-        supabase.from("sales").select("*").order("date", { ascending: false }),
-        supabase.from("expenses").select("*").order("date", { ascending: false }),
-      ]);
+    async function init() {
+      await loadAll();
       if (cancelled) return;
-
-      if (clientsRes.error) reportError("carregar clientes", clientsRes.error);
-      else setClients(clientsRes.data as Client[]);
-
-      if (salesRes.error) reportError("carregar vendas", salesRes.error);
-      else setSales(salesRes.data as Sale[]);
-
-      if (expensesRes.error) reportError("carregar despesas", expensesRes.error);
-      else setExpenses(expensesRes.data as Expense[]);
-
-      setLoading(false);
     }
 
-    void loadAll();
+    void init();
 
-    // Mantém os 3 sócios sincronizados em tempo real quando qualquer um edita algo.
     const channel = supabase
       .channel("bc-labs-data")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "clients" },
-        () => void loadAll(),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "sales" },
-        () => void loadAll(),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "expenses" },
-        () => void loadAll(),
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, () => void loadAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, () => void loadAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "expenses" }, () => void loadAll())
       .subscribe();
 
     return () => {
@@ -98,66 +85,91 @@ export function DataProvider({ children }: { children: ReactNode }) {
       sales,
       expenses,
       loading,
-      addSale: (input) => {
-        void supabase
-          .from("sales")
-          .insert(input)
-          .then(({ error }) => error && reportError("adicionar a venda", error));
+      refresh: loadAll,
+
+      // VENDAS
+      addSale: async (input) => {
+        const { data, error } = await supabase.from("sales").insert(input).select().single();
+        if (error) {
+          reportError("adicionar a venda", error);
+        } else if (data) {
+          setSales((prev) => [data as Sale, ...prev]);
+          toast.success("Venda registrada com sucesso!");
+        }
       },
-      updateSale: (id, input) => {
-        void supabase
-          .from("sales")
-          .update(input)
-          .eq("id", id)
-          .then(({ error }) => error && reportError("atualizar a venda", error));
+      updateSale: async (id, input) => {
+        const { data, error } = await supabase.from("sales").update(input).eq("id", id).select().single();
+        if (error) {
+          reportError("atualizar a venda", error);
+        } else if (data) {
+          setSales((prev) => prev.map((s) => (s.id === id ? (data as Sale) : s)));
+        }
       },
-      deleteSale: (id) => {
-        void supabase
-          .from("sales")
-          .delete()
-          .eq("id", id)
-          .then(({ error }) => error && reportError("excluir a venda", error));
+      deleteSale: async (id) => {
+        const { error } = await supabase.from("sales").delete().eq("id", id);
+        if (error) {
+          reportError("excluir a venda", error);
+        } else {
+          setSales((prev) => prev.filter((s) => s.id !== id));
+          toast.success("Venda excluída!");
+        }
       },
-      addExpense: (input) => {
-        void supabase
-          .from("expenses")
-          .insert(input)
-          .then(({ error }) => error && reportError("adicionar a despesa", error));
+
+      // DESPESAS
+      addExpense: async (input) => {
+        const { data, error } = await supabase.from("expenses").insert(input).select().single();
+        if (error) {
+          reportError("adicionar a despesa", error);
+        } else if (data) {
+          setExpenses((prev) => [data as Expense, ...prev]);
+          toast.success("Despesa lançada!");
+        }
       },
-      updateExpense: (id, input) => {
-        void supabase
-          .from("expenses")
-          .update(input)
-          .eq("id", id)
-          .then(({ error }) => error && reportError("atualizar a despesa", error));
+      updateExpense: async (id, input) => {
+        const { data, error } = await supabase.from("expenses").update(input).eq("id", id).select().single();
+        if (error) {
+          reportError("atualizar a despesa", error);
+        } else if (data) {
+          setExpenses((prev) => prev.map((e) => (e.id === id ? (data as Expense) : e)));
+        }
       },
-      deleteExpense: (id) => {
-        void supabase
-          .from("expenses")
-          .delete()
-          .eq("id", id)
-          .then(({ error }) => error && reportError("excluir a despesa", error));
+      deleteExpense: async (id) => {
+        const { error } = await supabase.from("expenses").delete().eq("id", id);
+        if (error) {
+          reportError("excluir a despesa", error);
+        } else {
+          setExpenses((prev) => prev.filter((e) => e.id !== id));
+        }
       },
-      addClient: (input) => {
-        void supabase
-          .from("clients")
-          .insert(input)
-          .then(({ error }) => error && reportError("adicionar o cliente", error));
+
+      // CLIENTES
+      addClient: async (input) => {
+        const { data, error } = await supabase.from("clients").insert(input).select().single();
+        if (error) {
+          reportError("adicionar o cliente", error);
+        } else if (data) {
+          setClients((prev) => [data as Client, ...prev]);
+          toast.success("Cliente cadastrado!");
+        }
       },
-      updateClient: (id, input) => {
-        void supabase
-          .from("clients")
-          .update(input)
-          .eq("id", id)
-          .then(({ error }) => error && reportError("atualizar o cliente", error));
+      updateClient: async (id, input) => {
+        const { data, error } = await supabase.from("clients").update(input).eq("id", id).select().single();
+        if (error) {
+          reportError("atualizar o cliente", error);
+        } else if (data) {
+          setClients((prev) => prev.map((c) => (c.id === id ? (data as Client) : c)));
+        }
       },
-      deleteClient: (id) => {
-        void supabase
-          .from("clients")
-          .delete()
-          .eq("id", id)
-          .then(({ error }) => error && reportError("excluir o cliente", error));
+      deleteClient: async (id) => {
+        const { error } = await supabase.from("clients").delete().eq("id", id);
+        if (error) {
+          reportError("excluir o cliente", error);
+        } else {
+          setClients((prev) => prev.filter((c) => c.id !== id));
+          toast.success("Cliente removido!");
+        }
       },
+
       clientById: (id) => clients.find((c) => c.id === id),
     }),
     [clients, sales, expenses, loading],

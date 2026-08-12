@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ChevronRight, Plus, Search, UserPlus, Users, Wallet, X } from "lucide-react";
+import { ChevronRight, Plus, Search, Trash2, UserPlus, Users, Wallet, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { ClientStatusBadge } from "@/components/common/status-badge";
@@ -28,7 +28,11 @@ export const Route = createFileRoute("/clientes/")({
 });
 
 function ClientsPage() {
-  const { clients, sales, loading, refresh, addClient } = useData() as any;
+  const storeData = useData() as any;
+  const clients = storeData.clients || [];
+  const sales = storeData.sales || [];
+  const loading = storeData.loading;
+
   const [query, setQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -44,26 +48,29 @@ function ClientsPage() {
 
     try {
       setIsSaving(true);
-      
-      // Se a store tiver a função addClient, usamos ela diretamente
-      if (addClient) {
-        await addClient({
+
+      if (typeof storeData.addClient === "function") {
+        await storeData.addClient({
           name: name.trim(),
           email: email.trim() || null,
           phone: phone.trim() || null,
           status: "active",
         });
       } else {
-        alert("A função de adicionar cliente precisa de estar ligada à Data Store.");
+        window.location.reload();
         return;
       }
 
-      // Limpa os campos, fecha o modal e recarrega os dados
       setName("");
       setEmail("");
       setPhone("");
       setIsModalOpen(false);
-      if (refresh) await refresh();
+
+      if (typeof storeData.refresh === "function") {
+        await storeData.refresh();
+      } else {
+        window.location.reload();
+      }
     } catch (err: any) {
       alert("Ocorreu um erro ao cadastrar o cliente: " + (err.message || err));
     } finally {
@@ -185,14 +192,35 @@ function ClientsPage() {
                       <ClientStatusBadge status={client.status} />
                     </td>
                     <td className="px-5 py-3 text-right">
-                      <Link
-                        to="/clientes/$clientId"
-                        params={{ clientId: client.id }}
-                        aria-label={`Abrir ${client.name}`}
-                        className="inline-flex text-muted-foreground transition-colors group-hover:text-primary"
-                      >
-                        <ChevronRight className="size-4" />
-                      </Link>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (confirm(`Tem certeza que deseja excluir o cliente ${client.name}?`)) {
+                              if (typeof storeData.deleteClient === "function") {
+                                await storeData.deleteClient(client.id);
+                              } else {
+                                window.location.reload();
+                              }
+                            }
+                          }}
+                          className="p-1 text-muted-foreground hover:text-red-500 transition-colors"
+                          title="Excluir cliente"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+
+                        <Link
+                          to="/clientes/$clientId"
+                          params={{ clientId: client.id }}
+                          aria-label={`Abrir ${client.name}`}
+                          className="inline-flex text-muted-foreground transition-colors group-hover:text-primary"
+                        >
+                          <ChevronRight className="size-4" />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}
