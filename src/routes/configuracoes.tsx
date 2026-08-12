@@ -12,14 +12,16 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/store/auth-store";
-import { useData } from "@/store/data-store";
 import { EXPENSE_CATEGORIES } from "@/types";
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({
     meta: [
       { title: "Configurações — BC Labs" },
-      { name: "description", content: "Perfil, empresa, preferências, categorias e integrações da BC Labs." },
+      {
+        name: "description",
+        content: "Perfil, empresa, preferências, categorias e integrações da BC Labs.",
+      },
       { property: "og:title", content: "Configurações — BC Labs" },
       { property: "og:description", content: "Configurações da plataforma BC Labs." },
     ],
@@ -28,23 +30,23 @@ export const Route = createFileRoute("/configuracoes")({
 });
 
 const INTEGRATIONS = [
-  { name: "Supabase", desc: "Banco de dados, autenticação e RLS" },
-  { name: "OpenAI", desc: "Modelos GPT para o BC AI" },
-  { name: "Anthropic", desc: "Modelos Claude para o BC AI" },
-  { name: "Google Gemini", desc: "Modelos Gemini para o BC AI" },
-  { name: "Stripe", desc: "Pagamentos e conciliação de taxas" },
-  { name: "Outras", desc: "APIs internas e webhooks" },
+  { name: "Supabase", desc: "Banco de dados, autenticação e RLS", connected: true },
+  { name: "Anthropic", desc: "Modelos Claude para o BC AI", connected: false },
+  { name: "Stripe", desc: "Pagamentos e conciliação de taxas", connected: false },
+  { name: "Outras", desc: "APIs internas e webhooks", connected: false },
 ];
 
 function SettingsPage() {
   const { user, updateProfile } = useAuth();
-  const { resetDemoData, isDemo } = useData();
   const [profile, setProfile] = useState({ name: user?.name ?? "", email: user?.email ?? "" });
   const [company, setCompany] = useState({ name: "BC Labs", doc: "", site: "bclabs.com.br" });
 
   return (
     <AppShell>
-      <PageHeader title="Configurações" description="Perfil, empresa, preferências, categorias e integrações." />
+      <PageHeader
+        title="Configurações"
+        description="Perfil, empresa, preferências, categorias e integrações."
+      />
 
       <Tabs defaultValue="perfil">
         <TabsList className="flex w-full flex-wrap justify-start">
@@ -130,7 +132,9 @@ function SettingsPage() {
                 />
               </div>
               <div>
-                <Button onClick={() => toast.success("Dados da empresa salvos")}>Salvar empresa</Button>
+                <Button onClick={() => toast.success("Dados da empresa salvos")}>
+                  Salvar empresa
+                </Button>
               </div>
             </div>
           </SectionCard>
@@ -142,25 +146,6 @@ function SettingsPage() {
               <Pref label="Moeda e locale" desc="Real brasileiro (R$) com formatação pt-BR" fixed />
               <Pref label="Tema escuro" desc="Interface otimizada para uso prolongado" fixed />
               <Pref label="Resumo semanal" desc="Receber um resumo por e-mail (requer backend)" />
-              {isDemo && (
-                <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-medium">Dados de demonstração</p>
-                    <p className="text-xs text-muted-foreground">
-                      A base atual é de demonstração. Restaurar volta ao conjunto original.
-                    </p>
-                  </div>
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      resetDemoData();
-                      toast.success("Dados de demonstração restaurados");
-                    }}
-                  >
-                    Restaurar
-                  </Button>
-                </div>
-              )}
             </div>
           </SectionCard>
         </TabsContent>
@@ -169,7 +154,10 @@ function SettingsPage() {
           <SectionCard title="Categorias de despesa" description="Usadas nos gráficos e relatórios">
             <div className="flex flex-wrap gap-2">
               {EXPENSE_CATEGORIES.map((c) => (
-                <span key={c} className="rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs">
+                <span
+                  key={c}
+                  className="rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs"
+                >
                   {c}
                 </span>
               ))}
@@ -178,7 +166,10 @@ function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="integracoes" className="mt-4">
-          <SectionCard title="Integrações" description="Chaves de API são usadas apenas no servidor, nunca no frontend">
+          <SectionCard
+            title="Integrações"
+            description="Chaves de API são usadas apenas no servidor, nunca no frontend"
+          >
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {INTEGRATIONS.map((i) => (
                 <div
@@ -191,8 +182,17 @@ function SettingsPage() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium">{i.name}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">{i.desc}</p>
-                    <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
-                      <span className="size-1.5 rounded-full bg-muted-foreground" /> Não conectado
+                    <span
+                      className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] ${
+                        i.connected
+                          ? "border-primary/30 text-primary"
+                          : "border-border text-muted-foreground"
+                      }`}
+                    >
+                      <span
+                        className={`size-1.5 rounded-full ${i.connected ? "bg-primary" : "bg-muted-foreground"}`}
+                      />
+                      {i.connected ? "Conectado" : "Não conectado"}
                     </span>
                   </div>
                 </div>

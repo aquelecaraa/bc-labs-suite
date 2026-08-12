@@ -1,12 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 
-import { demoClients, demoExpenses, demoSales, IS_DEMO_DATA } from "@/data/demo";
+import { supabase } from "@/lib/supabase";
 import type { Client, Expense, Sale } from "@/types";
 
 /**
- * Camada de dados da BC Labs.
- * Hoje: dados de demonstração persistidos localmente.
- * Futuro: trocar as implementações por chamadas ao Supabase mantendo a mesma API.
+ * Camada de dados da BC Labs, agora ligada ao Supabase (Postgres + Realtime).
+ * Todos os usuários autenticados (os 3 sócios) compartilham a mesma base.
  */
 
 interface DataState {
@@ -14,7 +14,6 @@ interface DataState {
   sales: Sale[];
   expenses: Expense[];
   loading: boolean;
-  isDemo: boolean;
   addSale: (input: Omit<Sale, keyof TimeStamps | "id">) => void;
   updateSale: (id: string, input: Partial<Sale>) => void;
   deleteSale: (id: string) => void;
@@ -25,102 +24,144 @@ interface DataState {
   updateClient: (id: string, input: Partial<Client>) => void;
   deleteClient: (id: string) => void;
   clientById: (id: string) => Client | undefined;
-  resetDemoData: () => void;
 }
 
 type TimeStamps = { created_at: string; updated_at: string };
 
-const STORAGE_KEY = "bclabs.data.v1";
 const DataContext = createContext<DataState | null>(null);
 
-const stamp = () => new Date().toISOString();
-const uid = (p: string) => `${p}_${Math.random().toString(36).slice(2, 10)}`;
-
-interface Snapshot {
-  clients: Client[];
-  sales: Sale[];
-  expenses: Expense[];
+function reportError(action: string, error: { message: string }) {
+  console.error(`[bc-labs] ${action} falhou:`, error.message);
+  toast.error(`Não foi possível ${action}. Tente novamente.`);
 }
 
-const seed = (): Snapshot => ({ clients: demoClients, sales: demoSales, expenses: demoExpenses });
-
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<Snapshot>(seed);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) setState(JSON.parse(raw) as Snapshot);
-    } catch {
-      /* ignora storage indisponível */
+    let cancelled = false;
+
+    async function loadAll() {
+      const [clientsRes, salesRes, expensesRes] = await Promise.all([
+        supabase.from("clients").select("*").order("created_at", { ascending: false }),
+        supabase.from("sales").select("*").order("date", { ascending: false }),
+        supabase.from("expenses").select("*").order("date", { ascending: false }),
+      ]);
+      if (cancelled) return;
+
+      if (clientsRes.error) reportError("carregar clientes", clientsRes.error);
+      else setClients(clientsRes.data as Client[]);
+
+      if (salesRes.error) reportError("carregar vendas", salesRes.error);
+      else setSales(salesRes.data as Sale[]);
+
+      if (expensesRes.error) reportError("carregar despesas", expensesRes.error);
+      else setExpenses(expensesRes.data as Expense[]);
+
+      setLoading(false);
     }
-    const t = window.setTimeout(() => setLoading(false), 350);
-    return () => window.clearTimeout(t);
-  }, []);
 
-  const persist = useCallback((next: Snapshot) => {
-    setState(next);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      /* ignora storage indisponível */
-    }
-  }, []);
+    void loadAll();
 
-  const value = useMemo<DataState>(() => {
-    const mutate = (fn: (s: Snapshot) => Snapshot) =>
-      setState((prev) => {
-        const next = fn(prev);
-        try {
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-        } catch {
-          /* noop */
-        }
-        return next;
-      });
+    // Mantém os 3 sócios sincronizados em tempo real quando qualquer um edita algo.
+    const channel = supabase
+      .channel("bc-labs-data")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "clients" },
+        () => void loadAll(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sales" },
+        () => void loadAll(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "expenses" },
+        () => void loadAll(),
+      )
+      .subscribe();
 
-    return {
-      ...state,
-      loading,
-      isDemo: IS_DEMO_DATA,
-      addSale: (input) =>
-        mutate((s) => ({
-          ...s,
-          sales: [{ ...input, id: uid("sal"), created_at: stamp(), updated_at: stamp() }, ...s.sales],
-        })),
-      updateSale: (id, input) =>
-        mutate((s) => ({
-          ...s,
-          sales: s.sales.map((x) => (x.id === id ? { ...x, ...input, updated_at: stamp() } : x)),
-        })),
-      deleteSale: (id) => mutate((s) => ({ ...s, sales: s.sales.filter((x) => x.id !== id) })),
-      addExpense: (input) =>
-        mutate((s) => ({
-          ...s,
-          expenses: [{ ...input, id: uid("exp"), created_at: stamp(), updated_at: stamp() }, ...s.expenses],
-        })),
-      updateExpense: (id, input) =>
-        mutate((s) => ({
-          ...s,
-          expenses: s.expenses.map((x) => (x.id === id ? { ...x, ...input, updated_at: stamp() } : x)),
-        })),
-      deleteExpense: (id) => mutate((s) => ({ ...s, expenses: s.expenses.filter((x) => x.id !== id) })),
-      addClient: (input) =>
-        mutate((s) => ({
-          ...s,
-          clients: [{ ...input, id: uid("cli"), created_at: stamp(), updated_at: stamp() }, ...s.clients],
-        })),
-      updateClient: (id, input) =>
-        mutate((s) => ({
-          ...s,
-          clients: s.clients.map((x) => (x.id === id ? { ...x, ...input, updated_at: stamp() } : x)),
-        })),
-      deleteClient: (id) => mutate((s) => ({ ...s, clients: s.clients.filter((x) => x.id !== id) })),
-      clientById: (id) => state.clients.find((c) => c.id === id),
-      resetDemoData: () => persist(seed()),
+    return () => {
+      cancelled = true;
+      void supabase.removeChannel(channel);
     };
-  }, [state, loading, persist]);
+  }, []);
+
+  const value = useMemo<DataState>(
+    () => ({
+      clients,
+      sales,
+      expenses,
+      loading,
+      addSale: (input) => {
+        void supabase
+          .from("sales")
+          .insert(input)
+          .then(({ error }) => error && reportError("adicionar a venda", error));
+      },
+      updateSale: (id, input) => {
+        void supabase
+          .from("sales")
+          .update(input)
+          .eq("id", id)
+          .then(({ error }) => error && reportError("atualizar a venda", error));
+      },
+      deleteSale: (id) => {
+        void supabase
+          .from("sales")
+          .delete()
+          .eq("id", id)
+          .then(({ error }) => error && reportError("excluir a venda", error));
+      },
+      addExpense: (input) => {
+        void supabase
+          .from("expenses")
+          .insert(input)
+          .then(({ error }) => error && reportError("adicionar a despesa", error));
+      },
+      updateExpense: (id, input) => {
+        void supabase
+          .from("expenses")
+          .update(input)
+          .eq("id", id)
+          .then(({ error }) => error && reportError("atualizar a despesa", error));
+      },
+      deleteExpense: (id) => {
+        void supabase
+          .from("expenses")
+          .delete()
+          .eq("id", id)
+          .then(({ error }) => error && reportError("excluir a despesa", error));
+      },
+      addClient: (input) => {
+        void supabase
+          .from("clients")
+          .insert(input)
+          .then(({ error }) => error && reportError("adicionar o cliente", error));
+      },
+      updateClient: (id, input) => {
+        void supabase
+          .from("clients")
+          .update(input)
+          .eq("id", id)
+          .then(({ error }) => error && reportError("atualizar o cliente", error));
+      },
+      deleteClient: (id) => {
+        void supabase
+          .from("clients")
+          .delete()
+          .eq("id", id)
+          .then(({ error }) => error && reportError("excluir o cliente", error));
+      },
+      clientById: (id) => clients.find((c) => c.id === id),
+    }),
+    [clients, sales, expenses, loading],
+  );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

@@ -99,20 +99,44 @@ const EXPENSE_TEMPLATES: Array<{
   recurring: boolean;
   ai_vendor?: AiVendor;
 }> = [
-  { description: "Assinatura OpenAI", category: "IA", min: 180, max: 620, recurring: true, ai_vendor: "OpenAI" },
-  { description: "Assinatura Claude", category: "IA", min: 120, max: 380, recurring: true, ai_vendor: "Claude" },
-  { description: "Créditos Lovable", category: "IA", min: 150, max: 700, recurring: true, ai_vendor: "Lovable" },
-  { description: "Google Gemini API", category: "IA", min: 60, max: 240, recurring: true, ai_vendor: "Gemini" },
-  { description: "APIs de terceiros", category: "IA", min: 40, max: 180, recurring: false, ai_vendor: "APIs" },
-  { description: "Suíte de produtividade", category: "Ferramentas", min: 90, max: 320, recurring: true },
-  { description: "Design & prototipagem", category: "Ferramentas", min: 60, max: 180, recurring: true },
-  { description: "Hospedagem e domínio", category: "Site/Hospedagem", min: 45, max: 210, recurring: true },
-  { description: "Campanha de aquisição", category: "Publicidade", min: 300, max: 1800, recurring: false },
-  { description: "Produção de conteúdo", category: "Marketing", min: 200, max: 900, recurring: false },
-  { description: "Contabilidade", category: "Serviços", min: 350, max: 550, recurring: true },
-  { description: "Custos operacionais", category: "Operacional", min: 120, max: 700, recurring: false },
-  { description: "Equipamento de escritório", category: "Equipamentos", min: 400, max: 2600, recurring: false },
-  { description: "Diversos", category: "Outros", min: 40, max: 260, recurring: false },
+  {
+    description: "Assinatura OpenAI",
+    category: "IA",
+    min: 180,
+    max: 620,
+    recurring: true,
+    ai_vendor: "OpenAI",
+  },
+  {
+    description: "Assinatura Claude",
+    category: "IA",
+    min: 120,
+    max: 380,
+    recurring: true,
+    ai_vendor: "Claude",
+  },
+  {
+    description: "Créditos Lovable",
+    category: "IA",
+    min: 150,
+    max: 700,
+    recurring: true,
+    ai_vendor: "Lovable",
+  },
+  {
+    description: "Hospedagem e domínio",
+    category: "Site/Hospedagem",
+    min: 45,
+    max: 210,
+    recurring: true,
+  },
+  {
+    description: "Taxas de processamento de cartão",
+    category: "Taxa de Cartão",
+    min: 80,
+    max: 450,
+    recurring: true,
+  },
 ];
 
 function buildExpenses(): Expense[] {

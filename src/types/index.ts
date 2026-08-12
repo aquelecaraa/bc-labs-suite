@@ -30,26 +30,12 @@ export interface Sale extends BaseRecord {
   notes?: string | undefined;
 }
 
-export type ExpenseCategory =
-  | "Ferramentas"
-  | "IA"
-  | "Site/Hospedagem"
-  | "Marketing"
-  | "Publicidade"
-  | "Operacional"
-  | "Equipamentos"
-  | "Serviços"
-  | "Outros";
+export type ExpenseCategory = "Taxa de Cartão" | "Site/Hospedagem" | "IA" | "Outros";
 
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
-  "Ferramentas",
-  "IA",
+  "Taxa de Cartão",
   "Site/Hospedagem",
-  "Marketing",
-  "Publicidade",
-  "Operacional",
-  "Equipamentos",
-  "Serviços",
+  "IA",
   "Outros",
 ];
 
@@ -65,7 +51,14 @@ export interface Expense extends BaseRecord {
 
 export type AiVendor = "OpenAI" | "Claude" | "Lovable" | "Gemini" | "APIs" | "Outras IAs";
 
-export const AI_VENDORS: AiVendor[] = ["OpenAI", "Claude", "Lovable", "Gemini", "APIs", "Outras IAs"];
+export const AI_VENDORS: AiVendor[] = [
+  "OpenAI",
+  "Claude",
+  "Lovable",
+  "Gemini",
+  "APIs",
+  "Outras IAs",
+];
 
 export const PAYMENT_METHODS = [
   "Pix",

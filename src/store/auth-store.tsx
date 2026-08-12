@@ -1,10 +1,18 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+
+import { supabase } from "@/lib/supabase";
 
 /**
- * Autenticação da BC Labs.
- * Hoje: sessão local de demonstração (nenhum backend conectado).
- * Futuro: substituir signIn/signUp/signOut por supabase.auth.* mantendo esta API,
- * e proteger as rotas pelo layout autenticado.
+ * Autenticação da BC Labs via Supabase Auth.
+ * Não há cadastro público: os 3 sócios são convidados manualmente pelo painel do Supabase.
  */
 
 export interface AuthUser {
@@ -16,57 +24,60 @@ export interface AuthUser {
 interface AuthState {
   user: AuthUser | null;
   ready: boolean;
-  isBackendConnected: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => void;
   updateProfile: (patch: Partial<AuthUser>) => void;
 }
 
-const KEY = "bclabs.session.v1";
 const AuthContext = createContext<AuthState | null>(null);
+
+function toAuthUser(supabaseUser: {
+  id: string;
+  email?: string | undefined;
+  user_metadata?: Record<string, unknown>;
+}): AuthUser {
+  const name =
+    (supabaseUser.user_metadata?.["name"] as string | undefined) ??
+    supabaseUser.email?.split("@")[0] ??
+    "Sócio";
+  return { id: supabaseUser.id, name, email: supabaseUser.email ?? "" };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(KEY);
-      if (raw) setUser(JSON.parse(raw) as AuthUser);
-    } catch {
-      /* noop */
-    }
-    setReady(true);
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ? toAuthUser(data.session.user) : null);
+      setReady(true);
+    });
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ? toAuthUser(session.user) : null);
+    });
+
+    return () => subscription.subscription.unsubscribe();
   }, []);
 
-  const persist = useCallback((next: AuthUser | null) => {
-    setUser(next);
-    try {
-      if (next) window.localStorage.setItem(KEY, JSON.stringify(next));
-      else window.localStorage.removeItem(KEY);
-    } catch {
-      /* noop */
-    }
+  const signIn = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  }, []);
+
+  const signOut = useCallback(() => {
+    void supabase.auth.signOut();
+  }, []);
+
+  const updateProfile = useCallback((patch: Partial<AuthUser>) => {
+    void supabase.auth.updateUser({ data: { name: patch.name } }).then(({ data, error }) => {
+      if (!error && data.user) setUser(toAuthUser(data.user));
+    });
   }, []);
 
   const value = useMemo<AuthState>(
-    () => ({
-      user,
-      ready,
-      isBackendConnected: false,
-      signIn: async (email) => {
-        await new Promise((r) => setTimeout(r, 500));
-        persist({ id: "local-demo", name: email.split("@")[0] || "Operador", email });
-      },
-      signUp: async (name, email) => {
-        await new Promise((r) => setTimeout(r, 600));
-        persist({ id: "local-demo", name, email });
-      },
-      signOut: () => persist(null),
-      updateProfile: (patch) => persist(user ? { ...user, ...patch } : null),
-    }),
-    [user, ready, persist],
+    () => ({ user, ready, signIn, signOut, updateProfile }),
+    [user, ready, signIn, signOut, updateProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

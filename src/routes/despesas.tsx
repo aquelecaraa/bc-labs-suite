@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Bot, Pencil, Plus, Receipt, RefreshCw, Trash2, Wrench } from "lucide-react";
+import { Bot, CreditCard, Pencil, Plus, Receipt, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -23,19 +23,40 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { expensesByCategory, filterByRange, growth, resolvePeriod, totalExpenses } from "@/lib/finance";
+import {
+  expensesByCategory,
+  filterByRange,
+  growth,
+  resolvePeriod,
+  totalExpenses,
+} from "@/lib/finance";
 import { formatBRL, formatDate, formatPercent, toISODate } from "@/lib/format";
 import { useData } from "@/store/data-store";
-import { AI_VENDORS, EXPENSE_CATEGORIES, type AiVendor, type Expense, type ExpenseCategory } from "@/types";
+import {
+  AI_VENDORS,
+  EXPENSE_CATEGORIES,
+  type AiVendor,
+  type Expense,
+  type ExpenseCategory,
+} from "@/types";
 
 export const Route = createFileRoute("/despesas")({
   head: () => ({
     meta: [
       { title: "Despesas — BC Labs" },
-      { name: "description", content: "Controle de despesas, recorrências e custos de IA da BC Labs." },
+      {
+        name: "description",
+        content: "Controle de despesas, recorrências e custos de IA da BC Labs.",
+      },
       { property: "og:title", content: "Despesas — BC Labs" },
       { property: "og:description", content: "Controle de despesas e AI Spend da BC Labs." },
     ],
@@ -61,7 +82,7 @@ function ExpensesPage() {
   const recurring = monthExpenses.filter((e) => e.recurring);
   const aiMonth = monthExpenses.filter((e) => e.category === "IA");
   const aiLast = lastMonthExpenses.filter((e) => e.category === "IA");
-  const toolsMonth = monthExpenses.filter((e) => e.category === "Ferramentas");
+  const cardFeesMonth = monthExpenses.filter((e) => e.category === "Taxa de Cartão");
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
@@ -137,9 +158,9 @@ function ExpensesPage() {
           invertChange
         />
         <StatCard
-          label="Gasto com ferramentas"
-          value={formatBRL(totalExpenses(toolsMonth))}
-          icon={Wrench}
+          label="Gasto com Taxa de Cartão"
+          value={formatBRL(totalExpenses(cardFeesMonth))}
+          icon={CreditCard}
           hint="no mês atual"
         />
       </div>
@@ -205,7 +226,10 @@ function ExpensesPage() {
               </thead>
               <tbody>
                 {rows.map((e) => (
-                  <tr key={e.id} className="border-b border-border/60 last:border-0 hover:bg-accent/40">
+                  <tr
+                    key={e.id}
+                    className="border-b border-border/60 last:border-0 hover:bg-accent/40"
+                  >
                     <td className="px-5 py-3 font-medium">{e.description}</td>
                     <td className="px-3 py-3">
                       <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
@@ -214,7 +238,9 @@ function ExpensesPage() {
                     </td>
                     <td className="px-3 py-3 text-muted-foreground">{formatDate(e.date)}</td>
                     <td className="px-3 py-3 text-right tabular-nums">{formatBRL(e.amount)}</td>
-                    <td className="px-3 py-3 text-muted-foreground">{e.recurring ? "Sim" : "Não"}</td>
+                    <td className="px-3 py-3 text-muted-foreground">
+                      {e.recurring ? "Sim" : "Não"}
+                    </td>
                     <td className="px-5 py-3">
                       <div className="flex justify-end gap-1">
                         <Button
@@ -301,7 +327,7 @@ function ExpenseDialog({
 }) {
   const [form, setForm] = useState({
     description: "",
-    category: "Ferramentas" as ExpenseCategory,
+    category: "Site/Hospedagem" as ExpenseCategory,
     amount: "",
     date: toISODate(new Date()),
     recurring: false,
@@ -315,7 +341,7 @@ function ExpenseDialog({
     setErrors({});
     setForm({
       description: expense?.description ?? "",
-      category: expense?.category ?? "Ferramentas",
+      category: expense?.category ?? "Site/Hospedagem",
       amount: expense ? String(expense.amount) : "",
       date: expense?.date ?? toISODate(new Date()),
       recurring: expense?.recurring ?? false,
@@ -350,7 +376,9 @@ function ExpenseDialog({
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{expense ? "Editar despesa" : "Nova despesa"}</DialogTitle>
-          <DialogDescription>Classifique corretamente para alimentar os relatórios.</DialogDescription>
+          <DialogDescription>
+            Classifique corretamente para alimentar os relatórios.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
@@ -361,7 +389,9 @@ function ExpenseDialog({
               maxLength={120}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
             />
-            {errors["description"] && <p className="text-xs text-destructive">{errors["description"]}</p>}
+            {errors["description"] && (
+              <p className="text-xs text-destructive">{errors["description"]}</p>
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -431,7 +461,9 @@ function ExpenseDialog({
           <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-3 py-2.5">
             <div>
               <p className="text-sm font-medium">Recorrente</p>
-              <p className="text-xs text-muted-foreground">Marque se a cobrança se repete mensalmente.</p>
+              <p className="text-xs text-muted-foreground">
+                Marque se a cobrança se repete mensalmente.
+              </p>
             </div>
             <Switch
               checked={form.recurring}

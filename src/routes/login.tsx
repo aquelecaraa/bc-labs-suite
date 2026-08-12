@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Loader2, Lock, Mail, ShieldCheck, User } from "lucide-react";
+import { Loader2, Lock, Mail, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -22,17 +22,15 @@ export const Route = createFileRoute("/login")({
 });
 
 const schema = z.object({
-  name: z.string().trim().max(80).optional(),
   email: z.string().trim().email({ message: "Informe um e-mail válido" }).max(255),
   password: z.string().min(6, { message: "A senha deve ter ao menos 6 caracteres" }).max(72),
 });
 
 function LoginPage() {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const { signIn, signUp, user, ready } = useAuth();
+  const { signIn, user, ready } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -48,19 +46,14 @@ function LoginPage() {
       setErrors(next);
       return;
     }
-    if (mode === "signup" && form.name.trim().length < 2) {
-      setErrors({ name: "Informe seu nome" });
-      return;
-    }
     setErrors({});
     setBusy(true);
     try {
-      if (mode === "signin") await signIn(form.email, form.password);
-      else await signUp(form.name.trim(), form.email, form.password);
-      toast.success(mode === "signin" ? "Bem-vindo de volta" : "Conta criada com sucesso");
+      await signIn(form.email, form.password);
+      toast.success("Bem-vindo de volta");
       void navigate({ to: "/" });
     } catch {
-      toast.error("Não foi possível autenticar. Tente novamente.");
+      toast.error("E-mail ou senha inválidos.");
     } finally {
       setBusy(false);
     }
@@ -78,33 +71,6 @@ function LoginPage() {
         </div>
 
         <form onSubmit={submit} className="surface space-y-4 p-6">
-          <div className="flex rounded-lg bg-muted p-1 text-sm">
-            {(["signin", "signup"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMode(m)}
-                className={`flex-1 rounded-md px-3 py-1.5 transition-colors ${
-                  mode === m ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {m === "signin" ? "Entrar" : "Criar conta"}
-              </button>
-            ))}
-          </div>
-
-          {mode === "signup" && (
-            <Field
-              id="name"
-              label="Nome"
-              icon={<User className="size-4" />}
-              value={form.name}
-              error={errors["name"]}
-              onChange={(v) => setForm({ ...form, name: v })}
-              placeholder="Seu nome"
-            />
-          )}
-
           <Field
             id="email"
             label="E-mail"
@@ -129,13 +95,12 @@ function LoginPage() {
 
           <Button type="submit" className="w-full" disabled={busy}>
             {busy && <Loader2 className="size-4 animate-spin" />}
-            {mode === "signin" ? "Entrar na plataforma" : "Criar minha conta"}
+            Entrar na plataforma
           </Button>
 
           <p className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3 text-[11px] leading-relaxed text-muted-foreground">
             <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-primary" />
-            Sessão local de demonstração. Nenhum backend está conectado ainda — ao ativar o banco de
-            dados, esta tela passa a usar autenticação real com proteção de rotas e RLS.
+            Acesso restrito aos sócios da BC Labs. Novas contas são criadas apenas por convite.
           </p>
         </form>
       </div>
@@ -168,7 +133,9 @@ function Field({
         {label}
       </Label>
       <div className="relative">
-        <span className="absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground">{icon}</span>
+        <span className="absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground">
+          {icon}
+        </span>
         <Input
           id={id}
           type={type}
