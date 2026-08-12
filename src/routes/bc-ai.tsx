@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Bot, Send, Sparkles, User } from "lucide-react";
+import { AlertCircle, Bot, Send, Sparkles, User } from "lucide-react";
+import OpenAI from "openai";
 import { useState } from "react";
 
 import { SectionCard } from "@/components/common/section-card";
@@ -7,7 +8,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { resolvePeriod, filterByRange, revenue, netProfit, totalExpenses, averageTicket } from "@/lib/finance";
+import { averageTicket, filterByRange, netProfit, resolvePeriod, revenue, totalExpenses } from "@/lib/finance";
 import { formatBRL, formatPercent } from "@/lib/format";
 import { useData } from "@/store/data-store";
 
@@ -32,18 +33,19 @@ const EXAMPLES = [
   "Qual é a nossa margem de lucro?",
 ];
 
-const AI_PROVIDER_CONNECTED = true;
-
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-function BcAiPage() {
+export function BcAiPage() {
   const { sales, expenses, clients } = useData();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const apiKey = import.meta.env['VITE_GROQ_API_KEY'];
 
   const month = resolvePeriod("month");
   const curSales = filterByRange(sales, month);
@@ -63,36 +65,68 @@ function BcAiPage() {
     { label: "Margem", value: formatPercent(margem) },
   ];
 
-  const handleSend = (textToSend?: string) => {
+  const handleSend = async (textToSend?: string) => {
     const question = (textToSend || input).trim();
     if (!question || loading) return;
 
+    if (!apiKey) {
+      setErrorMsg("Chave VITE_GROQ_API_KEY não encontrada nas variáveis de ambiente.");
+      return;
+    }
+
+    setErrorMsg(null);
     const userMsg: Message = { role: "user", content: question };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
 
-    setTimeout(() => {
-      let reply = "";
-      const q = question.toLowerCase();
+    try {
+      const client = new OpenAI({
+        apiKey,
+        baseURL: "https://api.groq.com/openai/v1",
+        dangerouslyAllowBrowser: true,
+      });
 
-      if (q.includes("fatur") || q.includes("vendas") || q.includes("quanto vendemos")) {
-        reply = `O faturamento do mês atual é de **${formatBRL(totalFat)}**, com um total de **${curSales.length}** vendas registradas no período.`;
-      } else if (q.includes("lucro") || q.includes("margem")) {
-        reply = `O lucro líquido no mês atual é de **${formatBRL(totalLucro)}**, representando uma margem de **${formatPercent(margem)}**.`;
-      } else if (q.includes("despesa") || q.includes("gasto")) {
-        reply = `As despesas totais acumuladas neste mês somam **${formatBRL(totalDesp)}**.`;
-      } else if (q.includes("ticket")) {
-        reply = `O ticket médio por venda realizada neste mês é de **${formatBRL(ticket)}**.`;
-      } else if (q.includes("cliente")) {
-        reply = `Atualmente a BC Labs possui **${clients.length}** clientes cadastrados na base ativa.`;
-      } else {
-        reply = `Com base nos dados atuais da BC Labs:\n- **Faturamento:** ${formatBRL(totalFat)}\n- **Lucro Líquido:** ${formatBRL(totalLucro)}\n- **Despesas:** ${formatBRL(totalDesp)}\n- **Clientes Ativos:** ${clients.length}`;
-      }
+      const systemPrompt = `
+Você é o BC AI, copiloto inteligente de inteligência artificial da BC Labs.
+Responda de forma clara, direta e objetiva no formato Markdown em Português do Brasil.
 
-      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+DADOS ATUAIS DA BC LABS:
+- Faturamento do mês: ${formatBRL(totalFat)}
+- Lucro Líquido: ${formatBRL(totalLucro)}
+- Despesas do mês: ${formatBRL(totalDesp)}
+- Ticket Médio: ${formatBRL(ticket)}
+- Margem de Lucro: ${formatPercent(margem)}
+- Total de Clientes: ${clients.length}
+
+VENDAS RECENTES:
+${JSON.stringify(sales.slice(0, 10).map((s) => ({ produto: s.product, valor: s.gross, data: s.date })), null, 2)}
+
+CLIENTES:
+${JSON.stringify(clients.map((c) => ({ nome: c.name, email: c.email })), null, 2)}
+      `;
+
+      const response = await client.chat.completions.create({
+        model: "llama-3.1-8b-instant",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+          { role: "user", content: question },
+        ],
+        temperature: 0.2,
+      });
+
+      const replyText = response.choices[0]?.message?.content || "Sem resposta.";
+      setMessages((prev) => [...prev, { role: "assistant", content: replyText }]);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg("Erro ao consultar o Groq AI: " + (err.message || err));
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   };
 
   return (
@@ -106,14 +140,20 @@ function BcAiPage() {
           </div>
           <h2 className="mt-4 text-lg font-semibold tracking-tight">BC AI Copilot</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Pergunte qualquer coisa sobre os dados financeiros e clientes da sua empresa.
+            Pergunte qualquer coisa sobre os dados financeiros e operacionais da sua empresa.
           </p>
         </div>
 
         <div className="space-y-4 p-4 sm:p-6">
-          {/* Conversa do Chat */}
+          {errorMsg && (
+            <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="size-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
           {messages.length > 0 && (
-            <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
+            <div className="space-y-3 max-h-[380px] overflow-y-auto pr-2">
               {messages.map((m, idx) => (
                 <div
                   key={idx}
@@ -133,21 +173,22 @@ function BcAiPage() {
               ))}
               {loading && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground p-2">
-                  <Sparkles className="size-3 animate-spin text-primary" /> Analisando dados da BC Labs...
+                  <Sparkles className="size-3 animate-spin text-primary" />
+                  <span>Analisando dados da BC Labs...</span>
                 </div>
               )}
             </div>
           )}
 
-          {/* Exemplos */}
           <div>
-            <p className="mb-2 text-xs font-medium text-muted-foreground uppercase">Perguntas frequentes</p>
+            <p className="mb-2 text-xs font-medium text-muted-foreground uppercase">Perguntas de exemplo</p>
             <div className="flex flex-wrap gap-2">
               {EXAMPLES.map((q) => (
                 <button
                   key={q}
+                  disabled={loading}
                   onClick={() => handleSend(q)}
-                  className="rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                  className="rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
                 >
                   {q}
                 </button>
@@ -155,7 +196,6 @@ function BcAiPage() {
             </div>
           </div>
 
-          {/* Caixa de Entrada */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -168,6 +208,7 @@ function BcAiPage() {
               maxLength={300}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Pergunte sobre faturamento, clientes, despesas…"
+              disabled={loading}
             />
             <Button type="submit" disabled={!input.trim() || loading}>
               <Send className="size-4" /> Enviar
@@ -179,7 +220,7 @@ function BcAiPage() {
       <SectionCard
         className="mt-4"
         title="Contexto disponível para a IA"
-        description="Dados em tempo real utilizados para responder às suas dúvidas"
+        description="Dados em tempo real enviados ao modelo em cada pergunta"
       >
         <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-5">
           {context.map((c) => (
