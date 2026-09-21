@@ -74,3 +74,76 @@ export interface DateRange {
   from: Date;
   to: Date;
 }
+
+// ---------- CRM de prospecção (leads) ----------
+
+export type LeadStatus =
+  | "novo"
+  | "qualificado"
+  | "mensagem_pronta"
+  | "mensagem_enviada"
+  | "respondeu"
+  | "negociacao"
+  | "proposta_enviada"
+  | "cliente"
+  | "perdido";
+
+export const LEAD_STATUSES: LeadStatus[] = [
+  "novo",
+  "qualificado",
+  "mensagem_pronta",
+  "mensagem_enviada",
+  "respondeu",
+  "negociacao",
+  "proposta_enviada",
+  "cliente",
+  "perdido",
+];
+
+export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
+  novo: "Novo",
+  qualificado: "Qualificado",
+  mensagem_pronta: "Mensagem pronta",
+  mensagem_enviada: "Mensagem enviada",
+  respondeu: "Respondeu",
+  negociacao: "Negociação",
+  proposta_enviada: "Proposta enviada",
+  cliente: "Cliente",
+  perdido: "Perdido",
+};
+
+export type LeadPriority = "baixa" | "media" | "alta";
+
+export const LEAD_PRIORITIES: LeadPriority[] = ["baixa", "media", "alta"];
+
+export const LEAD_PRIORITY_LABELS: Record<LeadPriority, string> = {
+  baixa: "Baixa",
+  media: "Média",
+  alta: "Alta",
+};
+
+export interface Lead extends BaseRecord {
+  company_name: string;
+  phone?: string | undefined;
+  website?: string | undefined;
+  address?: string | undefined;
+  google_maps_url?: string | undefined;
+  google_rating?: number | null | undefined;
+  google_reviews_count?: number | null | undefined;
+  source?: string | undefined;
+  score: number;
+  priority: LeadPriority;
+  opportunity_reason?: string | undefined;
+  status: LeadStatus;
+  whatsapp_message?: string | undefined;
+  converted_client_id?: string | null | undefined;
+  notes?: string | undefined;
+}
+
+export interface LeadActivity {
+  id: string;
+  lead_id: string;
+  type: string;
+  description: string;
+  created_at: string;
+}

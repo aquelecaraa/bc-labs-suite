@@ -13,12 +13,16 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as BcAiRouteImport } from './routes/bc-ai'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
+import { Route as CrmRouteImport } from './routes/crm'
 import { Route as DespesasRouteImport } from './routes/despesas'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as VendasRouteImport } from './routes/vendas'
 import { Route as ClientesIndexRouteImport } from './routes/clientes.index'
 import { Route as ClientesClientIdRouteImport } from './routes/clientes.$clientId'
+import { Route as CrmIndexRouteImport } from './routes/crm.index'
+import { Route as CrmLeadIdRouteImport } from './routes/crm.$leadId'
+import { Route as CrmKanbanRouteImport } from './routes/crm.kanban'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -38,6 +42,11 @@ const ClientesRoute = ClientesRouteImport.update({
 const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
   id: '/configuracoes',
   path: '/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmRoute = CrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DespesasRoute = DespesasRouteImport.update({
@@ -70,18 +79,37 @@ const ClientesClientIdRoute = ClientesClientIdRouteImport.update({
   path: '/$clientId',
   getParentRoute: () => ClientesRoute,
 } as any)
+const CrmIndexRoute = CrmIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CrmRoute,
+} as any)
+const CrmLeadIdRoute = CrmLeadIdRouteImport.update({
+  id: '/$leadId',
+  path: '/$leadId',
+  getParentRoute: () => CrmRoute,
+} as any)
+const CrmKanbanRoute = CrmKanbanRouteImport.update({
+  id: '/kanban',
+  path: '/kanban',
+  getParentRoute: () => CrmRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bc-ai': typeof BcAiRoute
   '/clientes': typeof ClientesRouteWithChildren
   '/configuracoes': typeof ConfiguracoesRoute
+  '/crm': typeof CrmRouteWithChildren
   '/despesas': typeof DespesasRoute
   '/login': typeof LoginRoute
   '/relatorios': typeof RelatoriosRoute
   '/vendas': typeof VendasRoute
   '/clientes/$clientId': typeof ClientesClientIdRoute
+  '/crm/$leadId': typeof CrmLeadIdRoute
+  '/crm/kanban': typeof CrmKanbanRoute
   '/clientes/': typeof ClientesIndexRoute
+  '/crm/': typeof CrmIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -92,7 +120,10 @@ export interface FileRoutesByTo {
   '/relatorios': typeof RelatoriosRoute
   '/vendas': typeof VendasRoute
   '/clientes/$clientId': typeof ClientesClientIdRoute
+  '/crm/$leadId': typeof CrmLeadIdRoute
+  '/crm/kanban': typeof CrmKanbanRoute
   '/clientes': typeof ClientesIndexRoute
+  '/crm': typeof CrmIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -100,12 +131,16 @@ export interface FileRoutesById {
   '/bc-ai': typeof BcAiRoute
   '/clientes': typeof ClientesRouteWithChildren
   '/configuracoes': typeof ConfiguracoesRoute
+  '/crm': typeof CrmRouteWithChildren
   '/despesas': typeof DespesasRoute
   '/login': typeof LoginRoute
   '/relatorios': typeof RelatoriosRoute
   '/vendas': typeof VendasRoute
   '/clientes/$clientId': typeof ClientesClientIdRoute
+  '/crm/$leadId': typeof CrmLeadIdRoute
+  '/crm/kanban': typeof CrmKanbanRoute
   '/clientes/': typeof ClientesIndexRoute
+  '/crm/': typeof CrmIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -114,12 +149,16 @@ export interface FileRouteTypes {
     | '/bc-ai'
     | '/clientes'
     | '/configuracoes'
+    | '/crm'
     | '/despesas'
     | '/login'
     | '/relatorios'
     | '/vendas'
     | '/clientes/$clientId'
+    | '/crm/$leadId'
+    | '/crm/kanban'
     | '/clientes/'
+    | '/crm/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -130,19 +169,26 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/vendas'
     | '/clientes/$clientId'
+    | '/crm/$leadId'
+    | '/crm/kanban'
     | '/clientes'
+    | '/crm'
   id:
     | '__root__'
     | '/'
     | '/bc-ai'
     | '/clientes'
     | '/configuracoes'
+    | '/crm'
     | '/despesas'
     | '/login'
     | '/relatorios'
     | '/vendas'
     | '/clientes/$clientId'
+    | '/crm/$leadId'
+    | '/crm/kanban'
     | '/clientes/'
+    | '/crm/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -150,6 +196,7 @@ export interface RootRouteChildren {
   BcAiRoute: typeof BcAiRoute
   ClientesRoute: typeof ClientesRouteWithChildren
   ConfiguracoesRoute: typeof ConfiguracoesRoute
+  CrmRoute: typeof CrmRouteWithChildren
   DespesasRoute: typeof DespesasRoute
   LoginRoute: typeof LoginRoute
   RelatoriosRoute: typeof RelatoriosRoute
@@ -184,6 +231,13 @@ declare module '@tanstack/react-router' {
       path: '/configuracoes'
       fullPath: '/configuracoes'
       preLoaderRoute: typeof ConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm': {
+      id: '/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof CrmRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/despesas': {
@@ -228,6 +282,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClientesClientIdRouteImport
       parentRoute: typeof ClientesRoute
     }
+    '/crm/': {
+      id: '/crm/'
+      path: '/'
+      fullPath: '/crm/'
+      preLoaderRoute: typeof CrmIndexRouteImport
+      parentRoute: typeof CrmRoute
+    }
+    '/crm/$leadId': {
+      id: '/crm/$leadId'
+      path: '/$leadId'
+      fullPath: '/crm/$leadId'
+      preLoaderRoute: typeof CrmLeadIdRouteImport
+      parentRoute: typeof CrmRoute
+    }
+    '/crm/kanban': {
+      id: '/crm/kanban'
+      path: '/kanban'
+      fullPath: '/crm/kanban'
+      preLoaderRoute: typeof CrmKanbanRouteImport
+      parentRoute: typeof CrmRoute
+    }
   }
 }
 
@@ -245,11 +320,26 @@ const ClientesRouteWithChildren = ClientesRoute._addFileChildren(
   ClientesRouteChildren,
 )
 
+interface CrmRouteChildren {
+  CrmLeadIdRoute: typeof CrmLeadIdRoute
+  CrmKanbanRoute: typeof CrmKanbanRoute
+  CrmIndexRoute: typeof CrmIndexRoute
+}
+
+const CrmRouteChildren: CrmRouteChildren = {
+  CrmLeadIdRoute: CrmLeadIdRoute,
+  CrmKanbanRoute: CrmKanbanRoute,
+  CrmIndexRoute: CrmIndexRoute,
+}
+
+const CrmRouteWithChildren = CrmRoute._addFileChildren(CrmRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BcAiRoute: BcAiRoute,
   ClientesRoute: ClientesRouteWithChildren,
   ConfiguracoesRoute: ConfiguracoesRoute,
+  CrmRoute: CrmRouteWithChildren,
   DespesasRoute: DespesasRoute,
   LoginRoute: LoginRoute,
   RelatoriosRoute: RelatoriosRoute,

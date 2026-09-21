@@ -15,6 +15,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/store/auth-store";
 import { DataProvider } from "@/store/data-store";
+import { LeadsProvider } from "@/store/leads-store";
 
 function NotFoundComponent() {
   return (
@@ -122,11 +123,13 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <DataProvider>
-          <TooltipProvider delayDuration={200}>
-            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-            <Outlet />
-            <Toaster position="top-right" richColors />
-          </TooltipProvider>
+          <LeadsProvider>
+            <TooltipProvider delayDuration={200}>
+              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+              <Outlet />
+              <Toaster position="top-right" richColors />
+            </TooltipProvider>
+          </LeadsProvider>
         </DataProvider>
       </AuthProvider>
     </QueryClientProvider>

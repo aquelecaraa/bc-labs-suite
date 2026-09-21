@@ -8,6 +8,7 @@ import {
   Settings,
   ShoppingCart,
   Sparkles,
+  Target,
   Users,
   X,
 } from "lucide-react";
@@ -21,6 +22,7 @@ const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/vendas", label: "Vendas", icon: ShoppingCart },
   { to: "/clientes", label: "Clientes", icon: Users },
+  { to: "/crm", label: "CRM", icon: Target },
   { to: "/despesas", label: "Despesas", icon: Receipt },
   { to: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { to: "/bc-ai", label: "BC AI", icon: Sparkles },
@@ -179,7 +181,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="animate-rise absolute inset-y-0 left-0 flex w-72 flex-col border-r border-sidebar-border bg-sidebar">
             <div className="flex items-center justify-between pt-5 pr-3">
               <Brand />
-              <Button variant="ghost" size="icon" aria-label="Fechar" onClick={() => setOpen(false)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Fechar"
+                onClick={() => setOpen(false)}
+              >
                 <X className="size-5" />
               </Button>
             </div>
@@ -190,7 +197,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
 
       <main className="grid-backdrop min-h-screen lg:pl-64">
-        <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</div>
+        <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          {children}
+        </div>
       </main>
     </div>
   );
