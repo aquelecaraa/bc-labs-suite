@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
+import { onlyDigits } from "@/lib/prospect/phone";
+import type { ProspectCandidate } from "@/lib/prospect/types";
 import { supabase } from "@/lib/supabase";
 import type { Client, Lead, LeadActivity } from "@/types";
 
@@ -20,6 +22,9 @@ interface LeadsState {
   activitiesForLead: (leadId: string) => LeadActivity[];
   addActivity: (leadId: string, type: string, description: string) => Promise<void>;
   convertToClient: (lead: Lead) => Promise<Client | null>;
+  importProspects: (
+    candidates: ProspectCandidate[],
+  ) => Promise<{ imported: number; duplicates: number; failed: number }>;
   refresh: () => Promise<void>;
 }
 
