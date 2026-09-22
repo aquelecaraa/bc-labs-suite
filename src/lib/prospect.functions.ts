@@ -76,7 +76,6 @@ export const searchProspects = createServerFn({ method: "POST" })
           language: "pt-BR",
           skipClosedPlaces: true,
           scrapePlaceDetailPage: false,
-ическое: undefined,
         }),
       },
     );
