@@ -1,0 +1,70 @@
+/** Termos de busca padrão para o nicho de clínicas particulares. */
+export const DEFAULT_NICHE_TERMS = [
+  "clínica médica",
+  "clínica de saúde",
+  "clínica especializada",
+  "clínica odontológica",
+  "clínica de estética",
+  "clínica dermatológica",
+  "clínica de fisioterapia",
+  "clínica de psicologia",
+  "clínica de ortopedia",
+  "clínica de oftalmologia",
+  "clínica veterinária",
+  "centro médico",
+  "centro de saúde",
+  "clínica de ginecologia",
+  "clínica de cardiologia",
+  "clínica de endocrinologia",
+];
+
+export const DEFAULT_CITY = "São Bernardo do Campo";
+export const DEFAULT_STATE = "SP";
+
+/** Nomes que indicam empresas fora do perfil desejado. */
+export const EXCLUDED_NAME_TERMS = [
+  "ubs",
+  "sus",
+  "unidade básica",
+  "unidade basica",
+  "hospital",
+  "pronto socorro",
+  "pronto-socorro",
+  "upa",
+  "ama ",
+  "prefeitura",
+  "secretaria de saúde",
+  "secretaria de saude",
+  "posto de saúde",
+  "posto de saude",
+  "santa casa",
+  "farmácia",
+  "farmacia",
+  "drogaria",
+  "droga raia",
+  "drogasil",
+  "pague menos",
+  "equipamentos médicos",
+  "equipamentos medicos",
+  "material hospitalar",
+  "distribuidora",
+  "hapvida",
+  "notredame",
+  "amil",
+  "unimed",
+  "dasa",
+  "fleury",
+  "delboni",
+  "einstein",
+  "sírio",
+  "sirio",
+  "oral sin",
+  "odontocompany",
+  "sorridents",
+  "orthodontic",
+  "dr consulta",
+  "dr. consulta",
+];
+
+export const MIN_REVIEWS = 20;
+export const MAX_REVIEWS = 349;
