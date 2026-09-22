@@ -138,6 +138,13 @@ export interface Lead extends BaseRecord {
   whatsapp_message?: string | undefined;
   converted_client_id?: string | null | undefined;
   notes?: string | undefined;
+  // Campos da prospecção automática (Google Maps via Apify)
+  place_id?: string | null | undefined;
+  city?: string | undefined;
+  state?: string | undefined;
+  postal_code?: string | undefined;
+  category?: string | undefined;
+  instagram?: string | undefined;
 }
 
 export interface LeadActivity {
