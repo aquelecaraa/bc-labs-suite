@@ -1,8 +1,9 @@
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
-import { LayoutGrid, List, Plus } from "lucide-react";
+import { LayoutGrid, List, Plus, Radar } from "lucide-react";
 import { useState } from "react";
 
 import { LeadDialog } from "@/components/crm/lead-dialog";
+import { ProspectDialog } from "@/components/crm/prospect-dialog";
 import { AppShell } from "@/components/layout/app-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ const TABS = [
 function CrmLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [isNewOpen, setIsNewOpen] = useState(false);
+  const [isProspectOpen, setIsProspectOpen] = useState(false);
 
   return (
     <AppShell>
@@ -27,9 +29,18 @@ function CrmLayout() {
         title="CRM de Prospecção"
         description="Leads em prospecção, do primeiro contato até virar cliente."
         actions={
-          <Button onClick={() => setIsNewOpen(true)} className="flex items-center gap-1.5">
-            <Plus className="size-4" /> Novo lead
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsProspectOpen(true)}
+              className="flex items-center gap-1.5"
+            >
+              <Radar className="size-4" /> Buscar leads
+            </Button>
+            <Button onClick={() => setIsNewOpen(true)} className="flex items-center gap-1.5">
+              <Plus className="size-4" /> Novo lead
+            </Button>
+          </div>
         }
       />
 
@@ -57,6 +68,7 @@ function CrmLayout() {
       <Outlet />
 
       <LeadDialog open={isNewOpen} onOpenChange={setIsNewOpen} />
+      <ProspectDialog open={isProspectOpen} onOpenChange={setIsProspectOpen} />
     </AppShell>
   );
 }
