@@ -49,7 +49,7 @@ function parseTerms(niche: string): string[] {
  * O token do Apify é lido apenas aqui, no servidor.
  */
 export const searchProspects = createServerFn({ method: "POST" })
-  .validator((data: unknown) => inputSchema.parse(data))
+  .inputValidator((data: unknown) => inputSchema.parse(data))
   .handler(async ({ data }): Promise<ProspectResult> => {
     const token = process.env["APIFY_API_TOKEN"];
     if (!token) {
@@ -83,7 +83,9 @@ export const searchProspects = createServerFn({ method: "POST" })
     if (!response.ok) {
       const body = await response.text();
       console.error(`[prospect] Apify falhou [${response.status}]: ${body}`);
-      throw new Error(`A busca no Apify falhou (${response.status}). Tente novamente em instantes.`);
+      throw new Error(
+        `A busca no Apify falhou (${response.status}). Tente novamente em instantes.`,
+      );
     }
 
     const places = (await response.json()) as ApifyPlace[];

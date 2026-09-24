@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
+import { onlyDigits } from "@/lib/prospect/phone";
+import type { ProspectCandidate } from "@/lib/prospect/types";
 import { supabase } from "@/lib/supabase";
 import type { Client, Lead, LeadActivity } from "@/types";
 
@@ -20,6 +22,9 @@ interface LeadsState {
   activitiesForLead: (leadId: string) => LeadActivity[];
   addActivity: (leadId: string, type: string, description: string) => Promise<void>;
   convertToClient: (lead: Lead) => Promise<Client | null>;
+  importProspects: (
+    candidates: ProspectCandidate[],
+  ) => Promise<{ imported: number; duplicates: number; failed: number }>;
   refresh: () => Promise<void>;
 }
 
@@ -131,6 +136,80 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
         } else if (data) {
           setActivities((prev) => [data as LeadActivity, ...prev]);
         }
+      },
+
+      importProspects: async (candidates) => {
+        let imported = 0;
+        let duplicates = 0;
+        let failed = 0;
+        const inserted: Lead[] = [];
+
+        // Deduplicação na ordem: place_id → telefone → Google Maps URL → nome + endereço
+        const key = (v?: string | null) => (v ?? "").trim().toLowerCase();
+        const placeIds = new Set(leads.map((l) => key(l.place_id)).filter(Boolean));
+        const phones = new Set(leads.map((l) => onlyDigits(l.phone ?? "")).filter(Boolean));
+        const urls = new Set(leads.map((l) => key(l.google_maps_url)).filter(Boolean));
+        const nameAddr = new Set(leads.map((l) => `${key(l.company_name)}|${key(l.address)}`));
+
+        for (const c of candidates) {
+          const cPhone = onlyDigits(c.phone);
+          const cNameAddr = `${key(c.company_name)}|${key(c.address)}`;
+          if (
+            placeIds.has(key(c.place_id)) ||
+            (cPhone && phones.has(cPhone)) ||
+            (c.google_maps_url && urls.has(key(c.google_maps_url))) ||
+            nameAddr.has(cNameAddr)
+          ) {
+            duplicates += 1;
+            continue;
+          }
+
+          const { data, error } = await supabase
+            .from("leads")
+            .insert({
+              company_name: c.company_name,
+              phone: c.phone_display,
+              website: c.website,
+              address: c.address,
+              city: c.city,
+              state: c.state,
+              postal_code: c.postal_code,
+              category: c.category,
+              place_id: c.place_id,
+              google_maps_url: c.google_maps_url,
+              google_rating: c.google_rating,
+              google_reviews_count: c.google_reviews_count,
+              source: c.source,
+              score: c.score,
+              priority: c.priority,
+              opportunity_reason: c.opportunity_reason,
+              status: "mensagem_pronta",
+              whatsapp_message: c.whatsapp_message,
+            })
+            .select()
+            .single();
+
+          if (error) {
+            // 23505 = índice único (place_id já existe no banco)
+            if ((error as { code?: string }).code === "23505") {
+              duplicates += 1;
+            } else {
+              failed += 1;
+              console.error("[bc-labs-crm] importar lead falhou:", error.message);
+            }
+            continue;
+          }
+
+          placeIds.add(key(c.place_id));
+          if (cPhone) phones.add(cPhone);
+          if (c.google_maps_url) urls.add(key(c.google_maps_url));
+          nameAddr.add(cNameAddr);
+          inserted.push(data as Lead);
+          imported += 1;
+        }
+
+        if (inserted.length) setLeads((prev) => [...inserted, ...prev]);
+        return { imported, duplicates, failed };
       },
 
       convertToClient: async (lead) => {
