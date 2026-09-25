@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
+import { enrichLeadFields } from "@/lib/prospect/enrich";
 import { onlyDigits } from "@/lib/prospect/phone";
 import type { ProspectCandidate } from "@/lib/prospect/types";
 import { supabase } from "@/lib/supabase";
@@ -26,6 +27,7 @@ interface LeadsState {
     candidates: ProspectCandidate[],
   ) => Promise<{ imported: number; duplicates: number; failed: number }>;
   refresh: () => Promise<void>;
+  processPendingLeads: (onProgress?: (done: number, total: number) => void) => Promise<{ processed: number; failed: number; total: number }>;
 }
 
 type BaseFields = { created_at: string; updated_at: string };
@@ -85,6 +87,34 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
       activities,
       loading,
       refresh: loadAll,
+
+      processPendingLeads: async (onProgress) => {
+        const { data, error } = await supabase
+          .from("leads")
+          .select("*")
+          .or("status.is.null,status.eq.");
+        if (error) {
+          reportError("buscar leads pendentes", error);
+          return { processed: 0, failed: 0, total: 0 };
+        }
+        const pending = (data ?? []) as Lead[];
+        let processed = 0;
+        let failed = 0;
+        onProgress?.(0, pending.length);
+        for (const [i, lead] of pending.entries()) {
+          const { error: upErr } = await supabase
+            .from("leads")
+            .update(enrichLeadFields(lead))
+            .eq("id", lead.id);
+          if (upErr) {
+            failed += 1;
+            console.error("[bc-labs-crm] processar lead falhou:", upErr.message);
+          } else processed += 1;
+          onProgress?.(i + 1, pending.length);
+        }
+        await loadAll();
+        return { processed, failed, total: pending.length };
+      },
 
       addLead: async (input) => {
         const { data, error } = await supabase.from("leads").insert(input).select().single();

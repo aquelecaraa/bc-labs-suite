@@ -1,5 +1,6 @@
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
-import { LayoutGrid, List, Plus, Radar } from "lucide-react";
+import { LayoutGrid, List, Loader2, Plus, Radar, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { useState } from "react";
 
 import { LeadDialog } from "@/components/crm/lead-dialog";
@@ -8,6 +9,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useLeads } from "@/store/leads-store";
 
 export const Route = createFileRoute("/crm")({
   component: CrmLayout,
@@ -22,6 +24,17 @@ function CrmLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [isProspectOpen, setIsProspectOpen] = useState(false);
+  const { processPendingLeads } = useLeads();
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+
+  async function handleProcess() {
+    setProgress({ done: 0, total: 0 });
+    const r = await processPendingLeads((done, total) => setProgress({ done, total }));
+    setProgress(null);
+    if (r.total === 0) toast.info("Nenhum lead pendente encontrado.");
+    else if (r.failed) toast.warning(`${r.processed} processados, ${r.failed} com erro.`);
+    else toast.success(`${r.processed} leads processados!`);
+  }
 
   return (
     <AppShell>
@@ -30,6 +43,23 @@ function CrmLayout() {
         description="Leads em prospecção, do primeiro contato até virar cliente."
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleProcess}
+              disabled={!!progress}
+              className="flex items-center gap-1.5"
+            >
+              {progress ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Processando {progress.total ? `${progress.done}/${progress.total}` : "…"}
+                </>
+              ) : (
+                <>
+                  <Sparkles className="size-4" /> Processar Leads Pendentes
+                </>
+              )}
+            </Button>
             <Button
               variant="outline"
               onClick={() => setIsProspectOpen(true)}
