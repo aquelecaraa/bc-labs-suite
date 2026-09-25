@@ -13,9 +13,9 @@ import {
  */
 export function enrichLeadFields(lead: {
   company_name: string;
-  website?: string | null;
-  google_rating?: number | string | null;
-  google_reviews_count?: number | string | null;
+  website?: string | null | undefined;
+  google_rating?: number | string | null | undefined;
+  google_reviews_count?: number | string | null | undefined;
 }) {
   const num = (v: unknown) => {
     if (v === null || v === undefined || v === "") return null;
