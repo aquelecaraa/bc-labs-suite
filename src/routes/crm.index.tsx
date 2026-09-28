@@ -29,6 +29,10 @@ export const Route = createFileRoute("/crm/")({
     meta: [
       { title: "CRM — Lista de leads — BC Labs" },
       { name: "description", content: "Lista de leads em prospecção da BC Labs." },
+      { property: "og:title", content: "CRM — Lista de leads — BC Labs" },
+      { property: "og:description", content: "Lista de leads em prospecção da BC Labs." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: CrmListPage,

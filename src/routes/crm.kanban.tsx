@@ -18,6 +18,10 @@ export const Route = createFileRoute("/crm/kanban")({
     meta: [
       { title: "CRM — Kanban — BC Labs" },
       { name: "description", content: "Funil de leads em Kanban da BC Labs." },
+      { property: "og:title", content: "CRM — Kanban — BC Labs" },
+      { property: "og:description", content: "Funil de leads em Kanban da BC Labs." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: CrmKanbanPage,
@@ -37,7 +41,7 @@ function CrmKanbanPage() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-220px)] min-h-0 w-full min-w-0 gap-4 overflow-x-scroll overflow-y-hidden pb-2 [scrollbar-gutter:stable]">
+    <div className="flex h-[calc(100dvh-320px)] min-h-64 w-full min-w-0 gap-4 overflow-x-scroll overflow-y-hidden pb-2 [scrollbar-gutter:stable] lg:h-[calc(100dvh-220px)]">
       {LEAD_STATUSES.map((status) => {
         const items = leads.filter((l) => l.status === status).sort(compareLeadPriority);
         return (

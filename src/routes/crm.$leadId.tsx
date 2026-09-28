@@ -28,7 +28,14 @@ import { useLeads } from "@/store/leads-store";
 
 export const Route = createFileRoute("/crm/$leadId")({
   head: () => ({
-    meta: [{ title: "Detalhes do lead — BC Labs" }],
+    meta: [
+      { title: "Detalhes do lead — BC Labs" },
+      { name: "description", content: "Dados, observações e histórico do lead na BC Labs." },
+      { property: "og:title", content: "Detalhes do lead — BC Labs" },
+      { property: "og:description", content: "Dados, observações e histórico do lead na BC Labs." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
   }),
   component: LeadDetailPage,
 });
