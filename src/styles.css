@@ -31,6 +31,12 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-priority-high: var(--priority-high);
+  --color-priority-medium: var(--priority-medium);
+  --color-priority-low: var(--priority-low);
+  --color-status-purple: var(--status-purple);
+  --color-status-green: var(--status-green);
+  --color-status-teal: var(--status-teal);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -85,6 +91,13 @@
 
   --warning: oklch(0.79 0.15 78);
   --warning-foreground: oklch(0.16 0.02 264);
+
+  --priority-high: oklch(0.63 0.2 22);
+  --priority-medium: oklch(0.75 0.16 55);
+  --priority-low: oklch(0.79 0.11 220);
+  --status-purple: oklch(0.76 0.15 310);
+  --status-green: oklch(0.74 0.15 155);
+  --status-teal: oklch(0.77 0.12 180);
 
   --border: oklch(0.29 0.009 264);
   --input: oklch(0.29 0.009 264);

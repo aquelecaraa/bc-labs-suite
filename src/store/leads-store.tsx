@@ -17,7 +17,7 @@ interface LeadsState {
   activities: LeadActivity[];
   loading: boolean;
   addLead: (input: Omit<Lead, keyof BaseFields | "id">) => Promise<Lead | null>;
-  updateLead: (id: string, input: Partial<Lead>) => Promise<void>;
+  updateLead: (id: string, input: Partial<Lead>) => Promise<boolean>;
   deleteLead: (id: string) => Promise<void>;
   leadById: (id: string) => Lead | undefined;
   activitiesForLead: (leadId: string) => LeadActivity[];
@@ -136,9 +136,12 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
           .single();
         if (error) {
           reportError("atualizar o lead", error);
+          return false;
         } else if (data) {
           setLeads((prev) => prev.map((l) => (l.id === id ? (data as Lead) : l)));
+          return true;
         }
+        return false;
       },
 
       deleteLead: async (id) => {
