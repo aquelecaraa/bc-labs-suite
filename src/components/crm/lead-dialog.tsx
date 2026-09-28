@@ -146,7 +146,11 @@ export function LeadDialog({
       }
     } else {
       const created = await addLead(payload);
-      if (created) await addActivity(created.id, "note", "Lead cadastrado");
+      if (!created) {
+        setSaving(false);
+        return;
+      }
+      await addActivity(created.id, "note", "Lead cadastrado");
     }
     setSaving(false);
     onOpenChange(false);
