@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDate, formatNumber } from "@/lib/format";
+import { compareLeadPriority } from "@/lib/lead-priority";
 import { useLeads } from "@/store/leads-store";
 import { LEAD_STATUSES, LEAD_STATUS_LABELS, type Lead, type LeadStatus } from "@/types";
 
@@ -47,7 +48,8 @@ function CrmListPage() {
       .filter((l) => (statusFilter === "all" ? true : l.status === statusFilter))
       .filter((l) =>
         q ? `${l.company_name} ${l.phone ?? ""} ${l.source ?? ""}`.toLowerCase().includes(q) : true,
-      );
+      )
+      .sort(compareLeadPriority);
   }, [leads, query, statusFilter]);
 
   const active = leads.filter((l) => l.status !== "cliente" && l.status !== "perdido").length;

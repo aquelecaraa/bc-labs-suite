@@ -92,10 +92,10 @@ export function LeadDialog({
             google_reviews_count:
               lead.google_reviews_count != null ? String(lead.google_reviews_count) : "",
             source: lead.source ?? "",
-            score: String(lead.score),
-            priority: lead.priority,
+             score: String(lead.score ?? 0),
+             priority: lead.priority ?? "media",
             opportunity_reason: lead.opportunity_reason ?? "",
-            status: lead.status,
+             status: lead.status ?? "novo",
             notes: lead.notes ?? "",
           }
         : emptyForm(),
@@ -128,18 +128,22 @@ export function LeadDialog({
       priority: parsed.data.priority,
       opportunity_reason: parsed.data.opportunity_reason || undefined,
       status: parsed.data.status,
-      notes: parsed.data.notes || undefined,
+      notes: parsed.data.notes,
     };
 
     if (lead) {
-      if (lead.status !== payload.status) {
+      const saved = await updateLead(lead.id, payload);
+      if (!saved) {
+        setSaving(false);
+        return;
+      }
+      if (lead.status !== payload.status && lead.status) {
         await addActivity(
           lead.id,
           "status_change",
           `Status alterado de "${LEAD_STATUS_LABELS[lead.status]}" para "${LEAD_STATUS_LABELS[payload.status]}"`,
         );
       }
-      await updateLead(lead.id, payload);
     } else {
       const created = await addLead(payload);
       if (created) await addActivity(created.id, "note", "Lead cadastrado");

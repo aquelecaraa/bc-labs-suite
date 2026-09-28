@@ -49,14 +49,14 @@ export function ClientStatusBadge({ status }: { status: "active" | "inactive" })
 
 const LEAD_STATUS_STYLES: Record<LeadStatus, string> = {
   novo: "bg-muted text-muted-foreground border-border",
-  qualificado: "bg-primary/10 text-primary border-primary/25",
-  mensagem_pronta: "bg-warning/10 text-warning border-warning/25",
-  mensagem_enviada: "bg-warning/10 text-warning border-warning/25",
-  respondeu: "bg-primary/10 text-primary border-primary/25",
-  negociacao: "bg-warning/10 text-warning border-warning/25",
-  proposta_enviada: "bg-primary/10 text-primary border-primary/25",
-  cliente: "bg-success/10 text-success border-success/25",
-  perdido: "bg-destructive/10 text-destructive border-destructive/25",
+  qualificado: "bg-status-teal/10 text-status-teal border-status-teal/30",
+  mensagem_pronta: "bg-status-purple/10 text-status-purple border-status-purple/30",
+  mensagem_enviada: "bg-status-green/10 text-status-green border-status-green/30",
+  respondeu: "bg-status-teal/10 text-status-teal border-status-teal/30",
+  negociacao: "bg-status-purple/10 text-status-purple border-status-purple/30",
+  proposta_enviada: "bg-status-teal/10 text-status-teal border-status-teal/30",
+  cliente: "bg-status-green/10 text-status-green border-status-green/30",
+  perdido: "bg-muted text-muted-foreground border-border",
 };
 
 export function LeadStatusBadge({ status }: { status: LeadStatus }) {
@@ -74,9 +74,9 @@ export function LeadStatusBadge({ status }: { status: LeadStatus }) {
 }
 
 const LEAD_PRIORITY_STYLES: Record<LeadPriority, string> = {
-  baixa: "bg-muted text-muted-foreground border-border",
-  media: "bg-warning/10 text-warning border-warning/25",
-  alta: "bg-destructive/10 text-destructive border-destructive/25",
+  baixa: "bg-priority-low/10 text-priority-low border-priority-low/30",
+  media: "bg-priority-medium/10 text-priority-medium border-priority-medium/30",
+  alta: "bg-priority-high/15 text-priority-high border-priority-high/35",
 };
 
 export function LeadPriorityBadge({ priority }: { priority: LeadPriority }) {
