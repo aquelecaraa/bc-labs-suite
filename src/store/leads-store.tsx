@@ -197,6 +197,32 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
             continue;
           }
 
+          // === NOVA LÓGICA DE FILTRAGEM E PONTUAÇÃO (BCLABS) ===
+          const url = (c.website || "").toLowerCase();
+          const linksFalsos = [
+            "instagram.com", "facebook.com", "wa.me", "api.whatsapp.com",
+            "linktr.ee", "business.site", "negocio.site", "beacons.ai", "maps.google.com"
+          ];
+          const isLinkFalso = linksFalsos.some(link => url.includes(link));
+
+          let finalScore = c.score;
+          let finalPriority = c.priority;
+          let finalStatus = "mensagem_pronta";
+          let finalReason = c.opportunity_reason;
+
+          if (!url || isLinkFalso) {
+            finalScore = Math.floor(Math.random() * (99 - 85 + 1) + 85);
+            finalPriority = "Alta";
+            finalStatus = "Sem Site - Abordagem Direta";
+            finalReason = isLinkFalso ? "Usa link genérico/rede social como site" : "Não possui site";
+          } else {
+            finalScore = Math.floor(Math.random() * (45 - 20 + 1) + 20);
+            finalPriority = "Média";
+            finalStatus = "Standby - Redesign";
+            finalReason = "Possui domínio próprio (Focar em lentidão/design)";
+          }
+          // =======================================================
+
           const { data, error } = await supabase
             .from("leads")
             .insert({
@@ -213,10 +239,10 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
               google_rating: c.google_rating,
               google_reviews_count: c.google_reviews_count,
               source: c.source,
-              score: c.score,
-              priority: c.priority,
-              opportunity_reason: c.opportunity_reason,
-              status: "mensagem_pronta",
+              score: finalScore,             // <- Variável atualizada
+              priority: finalPriority,       // <- Variável atualizada
+              opportunity_reason: finalReason, // <- Variável atualizada
+              status: finalStatus,           // <- Variável atualizada
               whatsapp_message: c.whatsapp_message,
             })
             .select()
