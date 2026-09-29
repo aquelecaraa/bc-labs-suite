@@ -212,13 +212,13 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
 
           if (!url || isLinkFalso) {
             finalScore = Math.floor(Math.random() * (99 - 85 + 1) + 85);
-            finalPriority = "Alta";
-            finalStatus = "Sem Site - Abordagem Direta";
+            finalPriority = "alta"; // <- minúsculo
+            finalStatus = "mensagem_pronta"; // <- chave original do seu sistema
             finalReason = isLinkFalso ? "Usa link genérico/rede social como site" : "Não possui site";
           } else {
             finalScore = Math.floor(Math.random() * (45 - 20 + 1) + 20);
-            finalPriority = "Média";
-            finalStatus = "Standby - Redesign";
+            finalPriority = "media"; // <- minúsculo e sem acento
+            finalStatus = "standby"; // <- chave original para o standby
             finalReason = "Possui domínio próprio (Focar em lentidão/design)";
           }
           // =======================================================

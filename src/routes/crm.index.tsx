@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ChevronRight, Search, Target, Trash2, Users } from "lucide-react";
+import { ChevronRight, Search, Target, Trash2, Users, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { ConfirmDelete } from "@/components/common/confirm-delete";
@@ -38,6 +38,8 @@ export const Route = createFileRoute("/crm/")({
   component: CrmListPage,
 });
 
+type SortKey = "company_name" | "score" | "priority" | "created_at";
+
 function CrmListPage() {
   const { leads, deleteLead, loading } = useLeads();
 
@@ -45,22 +47,62 @@ function CrmListPage() {
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("all");
   const [editing, setEditing] = useState<Lead | null>(null);
   const [toDelete, setToDelete] = useState<Lead | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: "asc" | "desc" } | null>(null);
+
+  const handleSort = (key: SortKey) => {
+    let direction: "asc" | "desc" = "desc"; // Padrão: do maior para o menor
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === "desc") {
+      direction = "asc";
+    }
+    setSortConfig({ key, direction });
+  };
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return leads
+    const filtered = leads
       .filter((l) => (statusFilter === "all" ? true : l.status === statusFilter))
       .filter((l) =>
         q ? `${l.company_name} ${l.phone ?? ""} ${l.source ?? ""}`.toLowerCase().includes(q) : true,
-      )
-      .sort(compareLeadPriority);
-  }, [leads, query, statusFilter]);
+      );
+
+    if (sortConfig) {
+      filtered.sort((a, b) => {
+        const { key, direction } = sortConfig;
+        const modifier = direction === "asc" ? 1 : -1;
+
+        if (key === "score") return ((a.score || 0) - (b.score || 0)) * modifier;
+        if (key === "company_name") return a.company_name.localeCompare(b.company_name) * modifier;
+        if (key === "created_at") {
+          return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * modifier;
+        }
+        if (key === "priority") {
+          // Utiliza a lógica de prioridade existente (Alta > Média > Baixa)
+          return direction === "desc" ? compareLeadPriority(a, b) : compareLeadPriority(b, a);
+        }
+        return 0;
+      });
+    } else {
+      // Ordenação padrão se não houver clique nos cabeçalhos
+      filtered.sort(compareLeadPriority);
+    }
+
+    return filtered;
+  }, [leads, query, statusFilter, sortConfig]);
 
   const active = leads.filter((l) => l.status !== "cliente" && l.status !== "perdido").length;
   const converted = leads.filter((l) => l.status === "cliente").length;
   const avgScore = leads.length
-    ? Math.round(leads.reduce((a, l) => a + l.score, 0) / leads.length)
+    ? Math.round(leads.reduce((a, l) => a + (l.score || 0), 0) / leads.length)
     : 0;
+
+  const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
+    if (sortConfig?.key !== columnKey) return <ArrowUpDown className="ml-1 size-3 opacity-30" />;
+    return sortConfig.direction === "asc" ? (
+      <ArrowUp className="ml-1 size-3 text-primary" />
+    ) : (
+      <ArrowDown className="ml-1 size-3 text-primary" />
+    );
+  };
 
   return (
     <>
@@ -131,13 +173,33 @@ function CrmListPage() {
             <table className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="px-5 py-3 font-medium">Empresa</th>
+                  <th 
+                    className="cursor-pointer px-5 py-3 font-medium transition-colors hover:bg-accent/50 select-none"
+                    onClick={() => handleSort("company_name")}
+                  >
+                    <div className="flex items-center">Empresa <SortIcon columnKey="company_name" /></div>
+                  </th>
                   <th className="px-3 py-3 font-medium">Contato</th>
                   <th className="px-3 py-3 font-medium">Origem</th>
-                  <th className="px-3 py-3 text-right font-medium">Score</th>
-                  <th className="px-3 py-3 font-medium">Prioridade</th>
+                  <th 
+                    className="cursor-pointer px-3 py-3 font-medium transition-colors hover:bg-accent/50 select-none"
+                    onClick={() => handleSort("score")}
+                  >
+                    <div className="flex items-center justify-end">Score <SortIcon columnKey="score" /></div>
+                  </th>
+                  <th 
+                    className="cursor-pointer px-3 py-3 font-medium transition-colors hover:bg-accent/50 select-none"
+                    onClick={() => handleSort("priority")}
+                  >
+                    <div className="flex items-center">Prioridade <SortIcon columnKey="priority" /></div>
+                  </th>
                   <th className="px-3 py-3 font-medium">Status</th>
-                  <th className="px-3 py-3 font-medium">Criado em</th>
+                  <th 
+                    className="cursor-pointer px-3 py-3 font-medium transition-colors hover:bg-accent/50 select-none"
+                    onClick={() => handleSort("created_at")}
+                  >
+                    <div className="flex items-center">Criado em <SortIcon columnKey="created_at" /></div>
+                  </th>
                   <th className="px-5 py-3 text-right font-medium">Ações</th>
                 </tr>
               </thead>
