@@ -22,10 +22,35 @@ export function computeScore(input: {
   return Math.max(0, Math.min(100, score));
 }
 
-export function priorityFromScore(score: number): "baixa" | "media" | "alta" {
+// Nova lógica de triagem BCLabs
+export function priorityFromScore(
+  score: number,
+  website?: string,
+  telefone?: string
+): string {
+  // Regra 1: Se já tem site, move para Standby para não poluir a fila principal
+  if (website && website.trim() !== "") {
+    return "Standby - Redesign";
+  }
+
+  // Regra 2: Se for número fixo (começa com 2 ou 4 após o DDD), descarta na hora
+  if (telefone) {
+    const numeroLimpo = telefone.replace(/\D/g, "");
+    const numSemPais = numeroLimpo.startsWith("55") ? numeroLimpo.substring(2) : numeroLimpo;
+    
+    // O dígito na posição 2 é o primeiro número real após os dois dígitos do DDD
+    if (numSemPais.length >= 3) {
+      const primeiroDigito = numSemPais.charAt(2);
+      if (primeiroDigito === "2" || primeiroDigito === "4") {
+        return "Descartado";
+      }
+    }
+  }
+
+  // Regra 3: Se não tem site e é telemóvel (WhatsApp), é ouro
   if (score >= 55) return "alta";
   if (score >= 30) return "media";
-  return "baixa";
+  return "alta"; 
 }
 
 export function siteStatusFor(website: string): SiteStatus {

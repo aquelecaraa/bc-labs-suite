@@ -77,6 +77,8 @@ const LEAD_PRIORITY_STYLES: Record<LeadPriority, string> = {
   baixa: "bg-priority-low/10 text-priority-low border-priority-low/30",
   media: "bg-priority-medium/10 text-priority-medium border-priority-medium/30",
   alta: "bg-priority-high/15 text-priority-high border-priority-high/35",
+  "Standby - Redesign": "bg-warning/10 text-warning border-warning/30",
+  "Descartado": "bg-muted text-muted-foreground border-border",
 };
 
 export function LeadPriorityBadge({ priority }: { priority: LeadPriority }) {

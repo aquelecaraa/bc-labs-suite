@@ -112,14 +112,16 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   perdido: "Perdido",
 };
 
-export type LeadPriority = "baixa" | "media" | "alta";
+export type LeadPriority = "baixa" | "media" | "alta" | "Standby - Redesign" | "Descartado";
 
-export const LEAD_PRIORITIES: LeadPriority[] = ["baixa", "media", "alta"];
+export const LEAD_PRIORITIES: LeadPriority[] = ["baixa", "media", "alta", "Standby - Redesign", "Descartado"];
 
 export const LEAD_PRIORITY_LABELS: Record<LeadPriority, string> = {
   baixa: "Baixa",
   media: "Média",
   alta: "Alta",
+  "Standby - Redesign": "Standby - Redesign",
+  "Descartado": "Descartado",
 };
 
 export interface Lead extends BaseRecord {

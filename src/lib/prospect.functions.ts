@@ -168,7 +168,7 @@ export const searchProspects = createServerFn({ method: "POST" })
         google_rating: rating,
         google_reviews_count: reviews,
         score,
-        priority: priorityFromScore(score),
+        priority: priorityFromScore(score, website, mobile) as any,
         site_status: siteStatus,
         opportunity_reason: buildOpportunityReason({
           siteStatus,
