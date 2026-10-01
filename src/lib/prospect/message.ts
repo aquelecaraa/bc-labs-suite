@@ -1,8 +1,8 @@
 import type { SiteStatus } from "./types";
 
 /**
- * Mensagem de WhatsApp personalizada, montada só com dados reais do lead.
- * Nada é enviado automaticamente — a mensagem fica salva no lead.
+ * Mensagem de WhatsApp personalizada, montada com dados reais do lead.
+ * Nada é enviado automaticamente; a mensagem fica salva no lead.
  */
 export function buildWhatsappMessage(input: {
   companyName: string;
@@ -10,26 +10,13 @@ export function buildWhatsappMessage(input: {
   rating: number | null;
   siteStatus: SiteStatus;
 }): string {
-  const { companyName, reviewsCount, rating, siteStatus } = input;
+  const { companyName } = input;
 
-  const social =
-    reviewsCount !== null
-      ? `vi que vocês já têm uma boa presença por lá, com ${reviewsCount} avaliações`
-      : rating !== null
-        ? `vi que vocês têm nota ${rating.toFixed(1).replace(".", ",")} por lá`
-        : "vi o perfil de vocês por lá";
+  return `Bom dia, tudo bem? Me chamo Lucas e trabalho na BC Labs, uma agência focada em criar páginas para empresas com o objetivo de destacar seu trabalho no mercado e aumentar suas conversões.
 
-  if (siteStatus === "SEM SITE") {
-    return (
-      `Oi, tudo bem? Encontrei a ${companyName} pelo Google e ${social}. ` +
-      `Procurei o site da clínica, mas não encontrei um oficial. ` +
-      `Trabalho com criação de sites para empresas locais e tive uma ideia de como poderia ficar a página de vocês. Posso te mostrar?`
-    );
-  }
+Percebi um detalhe importante na ${companyName}: hoje, quando alguém encontra vocês pelo Google, não tem acesso a uma página completa para conhecer melhor a empresa antes de entrar em contato pelo WhatsApp.
 
-  return (
-    `Oi, tudo bem? Encontrei a ${companyName} pelo Google e ${social}. ` +
-    `Vi que vocês já têm um site e trabalho com criação e melhoria de sites para clínicas da região. ` +
-    `Posso te mostrar algumas ideias de como a página de vocês poderia atrair mais pacientes?`
-  );
+Isso pode fazer com que um possível cliente chegue ao contato sem conhecer os serviços, diferenciais e outros pontos importantes da empresa.
+
+Gostaria de apresentar rapidamente nosso trabalho, sem tomar muito do seu tempo. Se fizer sentido para vocês, posso deixar nosso portfólio abaixo.`;
 }

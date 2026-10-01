@@ -12,6 +12,7 @@ import {
   Target,
   Trash2,
   UserCheck,
+  CalendarClock,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -23,8 +24,10 @@ import { LeadPriorityBadge, LeadStatusBadge } from "@/components/common/status-b
 import { LeadDialog } from "@/components/crm/lead-dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { formatDate } from "@/lib/format";
 import { useLeads } from "@/store/leads-store";
+import { supabase } from "@/lib/supabase"; // <-- Ajuste o caminho se necessário
 
 export const Route = createFileRoute("/crm/$leadId")({
   head: () => ({
@@ -55,6 +58,11 @@ function LeadDetailPage() {
   const [toDelete, setToDelete] = useState(false);
   const [message, setMessage] = useState(lead?.whatsapp_message ?? "");
   const [copied, setCopied] = useState(false);
+  
+  // Estados para o Agendamento
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
 
   const activities = useMemo(
     () => (lead ? activitiesForLead(lead.id) : []),
@@ -100,6 +108,39 @@ function LeadDetailPage() {
       : `https://wa.me/?text=${text}`;
     window.open(url, "_blank", "noopener,noreferrer");
     void addActivity(lead.id, "message_sent", "Abriu o WhatsApp para contato");
+  }
+
+  async function handleSchedule() {
+    if (!lead || !scheduleDate || !message.trim()) return;
+
+    setIsSubmittingSchedule(true);
+    try {
+      const { error } = await supabase
+        .from("scheduled_messages")
+        .insert({
+          lead_id: lead.id,
+          phone: lead.phone,
+          message: message,
+          scheduled_for: new Date(scheduleDate).toISOString(),
+          status: "pendente",
+        });
+
+      if (error) throw error;
+
+      toast.success("Mensagem agendada com sucesso!");
+      setIsScheduling(false);
+      setScheduleDate("");
+      
+      // Atualiza o histórico do lead e o status
+      void addActivity(lead.id, "message_scheduled", `Mensagem agendada para envio automático.`);
+      await updateLead(lead.id, { status: "mensagem_enviada" });
+      
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao agendar a mensagem. Verifique a conexão com o banco.");
+    } finally {
+      setIsSubmittingSchedule(false);
+    }
   }
 
   return (
@@ -219,7 +260,7 @@ function LeadDetailPage() {
           <div className="space-y-3">
             <Textarea
               rows={4}
-              placeholder="Escreva ou cole a mensagem para este lead… (geração automática por IA ainda não está ativa)"
+              placeholder="Escreva ou cole a mensagem para este lead..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />
@@ -249,7 +290,40 @@ function LeadDetailPage() {
               >
                 <MessageCircle className="size-4" /> Abrir WhatsApp
               </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsScheduling(!isScheduling)}
+                disabled={!message.trim() || !canWhatsapp}
+                className="flex items-center gap-1.5 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20"
+              >
+                <CalendarClock className="size-4" /> Agendar Envio
+              </Button>
             </div>
+
+            {/* Painel de Agendamento */}
+            {isScheduling && (
+              <div className="mt-4 flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-4 sm:flex-row sm:items-end">
+                <div className="flex-1 space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Data e Hora do Disparo Automático
+                  </label>
+                  <Input
+                    type="datetime-local"
+                    value={scheduleDate}
+                    onChange={(e) => setScheduleDate(e.target.value)}
+                    min={new Date().toISOString().slice(0, 16)} 
+                  />
+                </div>
+                <Button
+                  onClick={handleSchedule}
+                  disabled={!scheduleDate || isSubmittingSchedule}
+                  className="flex items-center gap-1.5"
+                >
+                  {isSubmittingSchedule ? "Agendando..." : "Confirmar Agendamento"}
+                </Button>
+              </div>
+            )}
           </div>
         </SectionCard>
 
