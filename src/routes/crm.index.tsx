@@ -45,6 +45,7 @@ function CrmListPage() {
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("all");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all"); // NOVO ESTADO
   const [editing, setEditing] = useState<Lead | null>(null);
   const [toDelete, setToDelete] = useState<Lead | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: "asc" | "desc" } | null>(null);
@@ -61,6 +62,12 @@ function CrmListPage() {
     const q = query.trim().toLowerCase();
     const filtered = leads
       .filter((l) => (statusFilter === "all" ? true : l.status === statusFilter))
+      .filter((l) => {
+        // NOVO FILTRO: Normaliza acentos e maiúsculas para comparar "Média" com "media" sem erro
+        if (priorityFilter === "all") return true;
+        const p = l.priority?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") || "";
+        return p === priorityFilter;
+      })
       .filter((l) =>
         q ? `${l.company_name} ${l.phone ?? ""} ${l.source ?? ""}`.toLowerCase().includes(q) : true,
       );
@@ -76,18 +83,16 @@ function CrmListPage() {
           return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * modifier;
         }
         if (key === "priority") {
-          // Utiliza a lógica de prioridade existente (Alta > Média > Baixa)
           return direction === "desc" ? compareLeadPriority(a, b) : compareLeadPriority(b, a);
         }
         return 0;
       });
     } else {
-      // Ordenação padrão se não houver clique nos cabeçalhos
       filtered.sort(compareLeadPriority);
     }
 
     return filtered;
-  }, [leads, query, statusFilter, sortConfig]);
+  }, [leads, query, statusFilter, priorityFilter, sortConfig]);
 
   const active = leads.filter((l) => l.status !== "cliente" && l.status !== "perdido").length;
   const converted = leads.filter((l) => l.status === "cliente").length;
@@ -142,6 +147,22 @@ function CrmListPage() {
               className="pl-9"
             />
           </div>
+          
+          <Select
+            value={priorityFilter}
+            onValueChange={setPriorityFilter}
+          >
+            <SelectTrigger className="sm:w-48">
+              <SelectValue placeholder="Todas as prioridades" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as prioridades</SelectItem>
+              <SelectItem value="alta">Prioridade Alta</SelectItem>
+              <SelectItem value="media">Prioridade Média</SelectItem>
+              <SelectItem value="baixa">Prioridade Baixa</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Select
             value={statusFilter}
             onValueChange={(v) => setStatusFilter(v as LeadStatus | "all")}
@@ -159,6 +180,12 @@ function CrmListPage() {
             </SelectContent>
           </Select>
         </div>
+
+        {!loading && (
+          <div className="bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground border-b border-border">
+            {rows.length === 1 ? "1 lead corresponde aos filtros" : `${rows.length} leads correspondem aos filtros`}
+          </div>
+        )}
 
         {loading ? (
           <div className="space-y-2 p-4">
