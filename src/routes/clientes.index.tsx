@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { isPaid } from "@/lib/finance";
 import { formatBRL, formatDate, formatNumber } from "@/lib/format";
 import { useData } from "@/store/data-store";
+import { useAuth } from "@/store/auth-store";
 import type { Client } from "@/types";
 
 export const Route = createFileRoute("/clientes/")({
@@ -33,6 +34,7 @@ export const Route = createFileRoute("/clientes/")({
 
 function ClientsPage() {
   const { clients, sales, deleteClient, addClient, loading } = useData();
+  const { isAdmin } = useAuth(); // Trava global
 
   const [query, setQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -107,41 +109,21 @@ function ClientsPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Clientes ativos" value={formatNumber(active)} icon={Users} hint="base atual" loading={loading} />
         <StatCard label="Novos clientes" value={formatNumber(newThisMonth)} icon={UserPlus} hint="neste mês" loading={loading} />
-        <StatCard
-          label="Receita por cliente"
-          value={formatBRL(clients.length ? totalRevenue / clients.length : 0)}
-          icon={Wallet}
-          hint="média histórica"
-          loading={loading}
-        />
-        <StatCard
-          label="Ticket médio"
-          value={formatBRL(totalPurchases ? totalRevenue / totalPurchases : 0)}
-          icon={Wallet}
-          hint="por compra"
-          loading={loading}
-        />
+        <StatCard label="Receita por cliente" value={formatBRL(clients.length ? totalRevenue / clients.length : 0)} icon={Wallet} hint="média histórica" loading={loading} />
+        <StatCard label="Ticket médio" value={formatBRL(totalPurchases ? totalRevenue / totalPurchases : 0)} icon={Wallet} hint="por compra" loading={loading} />
       </div>
 
       <SectionCard className="mt-4" bodyClassName="p-0">
         <div className="border-b border-border p-4">
           <div className="relative">
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar cliente…"
-              value={query}
-              maxLength={80}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pl-9"
-            />
+            <Input placeholder="Buscar cliente…" value={query} maxLength={80} onChange={(e) => setQuery(e.target.value)} className="pl-9" />
           </div>
         </div>
 
         {loading ? (
           <div className="space-y-2 p-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
+            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
           </div>
         ) : rows.length === 0 ? (
           <EmptyState icon={Users} title="Nenhum cliente encontrado" />
@@ -163,13 +145,7 @@ function ClientsPage() {
                 {rows.map(({ client, total, purchases, last }) => (
                   <tr key={client.id} className="group border-b border-border/60 transition-colors last:border-0 hover:bg-accent/40">
                     <td className="px-5 py-3 font-medium">
-                      <Link
-                        to="/clientes/$clientId"
-                        params={{ clientId: client.id }}
-                        className="hover:text-primary"
-                      >
-                        {client.name}
-                      </Link>
+                      <Link to="/clientes/$clientId" params={{ clientId: client.id }} className="hover:text-primary">{client.name}</Link>
                     </td>
                     <td className="px-3 py-3 text-muted-foreground">
                       <div>{client.email || "—"}</div>
@@ -178,24 +154,26 @@ function ClientsPage() {
                     <td className="px-3 py-3 text-right tabular-nums">{formatBRL(total)}</td>
                     <td className="px-3 py-3 text-right tabular-nums">{formatNumber(purchases)}</td>
                     <td className="px-3 py-3 text-muted-foreground">{last ? formatDate(last) : "—"}</td>
-                    <td className="px-3 py-3">
-                      <ClientStatusBadge status={client.status} />
-                    </td>
+                    <td className="px-3 py-3"><ClientStatusBadge status={client.status} /></td>
                     <td className="px-5 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-8 text-muted-foreground hover:text-destructive"
-                              onClick={() => setToDelete(client)}
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Excluir</TooltipContent>
-                        </Tooltip>
+                        
+                        {/* Bloqueio da Lixeira */}
+                        {isAdmin && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 text-muted-foreground hover:text-destructive"
+                                onClick={() => setToDelete(client)}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Excluir</TooltipContent>
+                          </Tooltip>
+                        )}
 
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -217,87 +195,51 @@ function ClientsPage() {
         )}
       </SectionCard>
 
-      {/* Modal de Novo Cliente */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
             <div className="flex items-center justify-between pb-4 border-b border-border">
               <h2 className="text-lg font-semibold">Cadastrar Novo Cliente</h2>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
+              <button type="button" onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="size-5" />
               </button>
             </div>
-
             <form onSubmit={handleCreateClient} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">
-                  Nome Completo *
-                </label>
-                <Input
-                  required
-                  placeholder="Ex: João Silva"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Nome Completo *</label>
+                <Input required placeholder="Ex: João Silva" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
-
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">
-                  E-mail
-                </label>
-                <Input
-                  type="email"
-                  placeholder="joao@exemplo.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+                <label className="block text-xs font-medium text-muted-foreground mb-1">E-mail</label>
+                <Input type="email" placeholder="joao@exemplo.com" value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
-
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">
-                  Telefone / WhatsApp
-                </label>
-                <Input
-                  placeholder="(11) 99999-9999"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Telefone / WhatsApp</label>
+                <Input placeholder="(11) 99999-9999" value={phone} onChange={(e) => setPhone(e.target.value)} />
               </div>
-
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={isSaving}>
-                  {isSaving ? "Salvando..." : "Cadastrar Cliente"}
-                </Button>
+                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                <Button type="submit" disabled={isSaving}>{isSaving ? "Salvando..." : "Cadastrar Cliente"}</Button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ConfirmDelete Oficial da UI */}
-      <ConfirmDelete
-        open={!!toDelete}
-        onOpenChange={(v) => !v && setToDelete(null)}
-        title="Excluir cliente?"
-        description={`O cliente ${toDelete?.name || ""} e seus históricos serão removidos da base.`}
-        onConfirm={() => {
-          if (toDelete) {
-            deleteClient(toDelete.id);
-          }
-          setToDelete(null);
-        }}
-      />
+      {isAdmin && (
+        <ConfirmDelete
+          open={!!toDelete}
+          onOpenChange={(v) => !v && setToDelete(null)}
+          title="Excluir cliente?"
+          description={`O cliente ${toDelete?.name || ""} e seus históricos serão removidos da base.`}
+          onConfirm={() => {
+            if (toDelete) {
+              deleteClient(toDelete.id);
+            }
+            setToDelete(null);
+          }}
+        />
+      )}
     </AppShell>
   );
 }

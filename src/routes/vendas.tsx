@@ -36,6 +36,7 @@ import {
 } from "@/lib/finance";
 import { formatBRL, formatDate, formatNumber, formatPercent } from "@/lib/format";
 import { useData } from "@/store/data-store";
+import { useAuth } from "@/store/auth-store";
 import type { Sale } from "@/types";
 
 export const Route = createFileRoute("/vendas")({
@@ -53,6 +54,7 @@ export const Route = createFileRoute("/vendas")({
 function SalesPage() {
   const { sales, clients, deleteSale, loading } = useData();
   const { period, setPeriod, custom, setCustom, range } = usePeriod("year");
+  const { isAdmin } = useAuth(); // Trava global
 
   const [query, setQuery] = useState("");
   const [clientFilter, setClientFilter] = useState("all");
@@ -105,66 +107,30 @@ function SalesPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Total de vendas"
-          value={formatNumber(filtered.filter((s) => s.status === "paid").length)}
-          icon={ShoppingCart}
-          hint="vendas pagas no filtro"
-          loading={loading}
-        />
-        <StatCard
-          label="Faturamento"
-          value={formatBRL(revenue(filtered))}
-          icon={Wallet}
-          hint="soma das vendas pagas"
-          loading={loading}
-        />
-        <StatCard
-          label="Lucro"
-          value={formatBRL(filtered.filter((s) => s.status === "paid").reduce((a, s) => a + saleProfit(s), 0))}
-          icon={TrendingUp}
-          hint="bruto - taxas - custos"
-          loading={loading}
-        />
-        <StatCard
-          label="Ticket médio"
-          value={formatBRL(averageTicket(filtered))}
-          icon={Wallet}
-          hint="faturamento / vendas"
-          loading={loading}
-        />
+        <StatCard label="Total de vendas" value={formatNumber(filtered.filter((s) => s.status === "paid").length)} icon={ShoppingCart} hint="vendas pagas no filtro" loading={loading} />
+        <StatCard label="Faturamento" value={formatBRL(revenue(filtered))} icon={Wallet} hint="soma das vendas pagas" loading={loading} />
+        <StatCard label="Lucro" value={formatBRL(filtered.filter((s) => s.status === "paid").reduce((a, s) => a + saleProfit(s), 0))} icon={TrendingUp} hint="bruto - taxas - custos" loading={loading} />
+        <StatCard label="Ticket médio" value={formatBRL(averageTicket(filtered))} icon={Wallet} hint="faturamento / vendas" loading={loading} />
       </div>
 
       <SectionCard className="mt-4" bodyClassName="p-0">
         <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center">
           <div className="relative flex-1">
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por cliente, produto ou pagamento…"
-              value={query}
-              maxLength={80}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pl-9"
-            />
+            <Input placeholder="Buscar por cliente, produto ou pagamento…" value={query} maxLength={80} onChange={(e) => setQuery(e.target.value)} className="pl-9" />
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <Select value={clientFilter} onValueChange={setClientFilter}>
-              <SelectTrigger className="w-full sm:w-[170px]">
-                <SelectValue placeholder="Cliente" />
-              </SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[170px]"><SelectValue placeholder="Cliente" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os clientes</SelectItem>
                 {clients.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[150px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os status</SelectItem>
                 <SelectItem value="paid">Pago</SelectItem>
@@ -173,15 +139,11 @@ function SalesPage() {
               </SelectContent>
             </Select>
             <Select value={productFilter} onValueChange={setProductFilter}>
-              <SelectTrigger className="w-full sm:w-[190px]">
-                <SelectValue placeholder="Produto" />
-              </SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[190px]"><SelectValue placeholder="Produto" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os produtos</SelectItem>
                 {products.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p}
-                  </SelectItem>
+                  <SelectItem key={p} value={p}>{p}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -190,9 +152,7 @@ function SalesPage() {
 
         {loading ? (
           <div className="space-y-2 p-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState
@@ -237,9 +197,7 @@ function SalesPage() {
                     <td className="px-3 py-3 text-right text-muted-foreground tabular-nums">{formatBRL(s.fees)}</td>
                     <td className="px-3 py-3 text-right text-muted-foreground tabular-nums">{formatBRL(s.costs)}</td>
                     <td className="px-3 py-3 text-right font-medium tabular-nums">{formatBRL(saleProfit(s))}</td>
-                    <td className="px-3 py-3">
-                      <StatusBadge status={s.status} />
-                    </td>
+                    <td className="px-3 py-3"><StatusBadge status={s.status} /></td>
                     <td className="px-5 py-3">
                       <div className="flex justify-end gap-1">
                         <IconAction label="Detalhes" onClick={() => setDetail(s)}>
@@ -254,9 +212,12 @@ function SalesPage() {
                         >
                           <Pencil className="size-4" />
                         </IconAction>
-                        <IconAction label="Excluir" destructive onClick={() => setToDelete(s)}>
-                          <Trash2 className="size-4" />
-                        </IconAction>
+                        {/* Bloqueio da Lixeira */}
+                        {isAdmin && (
+                          <IconAction label="Excluir" destructive onClick={() => setToDelete(s)}>
+                            <Trash2 className="size-4" />
+                          </IconAction>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -300,19 +261,21 @@ function SalesPage() {
         </DialogContent>
       </Dialog>
 
-      <ConfirmDelete
-        open={!!toDelete}
-        onOpenChange={(v) => !v && setToDelete(null)}
-        title="Excluir venda?"
-        description="O registro será removido permanentemente dos relatórios."
-        onConfirm={() => {
-          if (toDelete) {
-            deleteSale(toDelete.id);
-            toast.success("Venda excluída");
-          }
-          setToDelete(null);
-        }}
-      />
+      {isAdmin && (
+        <ConfirmDelete
+          open={!!toDelete}
+          onOpenChange={(v) => !v && setToDelete(null)}
+          title="Excluir venda?"
+          description="O registro será removido permanentemente dos relatórios."
+          onConfirm={() => {
+            if (toDelete) {
+              deleteSale(toDelete.id);
+              toast.success("Venda excluída");
+            }
+            setToDelete(null);
+          }}
+        />
+      )}
     </AppShell>
   );
 }
