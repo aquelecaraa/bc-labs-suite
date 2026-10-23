@@ -40,18 +40,30 @@ export const Route = createFileRoute("/crm/")({
 
 type SortKey = "company_name" | "score" | "priority" | "created_at";
 
+// 1. E-mails dos sócios com acesso total (O gtato047@gmail.com fica de fora)
+const ADMIN_EMAILS = [
+  "gabriel.cheles10@gmail.com",
+  "zzlucasbritozz@gmail.com",
+  "etecmurillo@gmail.com"
+];
+
 function CrmListPage() {
   const { leads, deleteLead, loading } = useLeads();
 
+  // 2. Substitua esta variável pelo método que puxa o e-mail do utilizador logado no seu sistema
+  // Exemplo: const { user } = useAuth(); const userEmail = user?.email;
+  const userEmail = "zzlucasbritozz@gmail.com"; 
+  const isAdmin = ADMIN_EMAILS.includes(userEmail || "");
+
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("all");
-  const [priorityFilter, setPriorityFilter] = useState<string>("all"); // NOVO ESTADO
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [editing, setEditing] = useState<Lead | null>(null);
   const [toDelete, setToDelete] = useState<Lead | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: "asc" | "desc" } | null>(null);
 
   const handleSort = (key: SortKey) => {
-    let direction: "asc" | "desc" = "desc"; // Padrão: do maior para o menor
+    let direction: "asc" | "desc" = "desc";
     if (sortConfig && sortConfig.key === key && sortConfig.direction === "desc") {
       direction = "asc";
     }
@@ -63,7 +75,6 @@ function CrmListPage() {
     const filtered = leads
       .filter((l) => (statusFilter === "all" ? true : l.status === statusFilter))
       .filter((l) => {
-        // NOVO FILTRO: Normaliza acentos e maiúsculas para comparar "Média" com "media" sem erro
         if (priorityFilter === "all") return true;
         const p = l.priority?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") || "";
         return p === priorityFilter;
@@ -262,19 +273,24 @@ function CrmListPage() {
                     </td>
                     <td className="px-5 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-8 text-muted-foreground hover:text-destructive"
-                              onClick={() => setToDelete(lead)}
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Excluir</TooltipContent>
-                        </Tooltip>
+                        
+                        {/* 3. A lixeira só é renderizada se o utilizador for Admin */}
+                        {isAdmin && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 text-muted-foreground hover:text-destructive"
+                                onClick={() => setToDelete(lead)}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Excluir</TooltipContent>
+                          </Tooltip>
+                        )}
+                        
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
@@ -300,18 +316,22 @@ function CrmListPage() {
         )}
       </SectionCard>
 
-      <LeadDialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)} lead={editing} />
+      {isAdmin && (
+        <LeadDialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)} lead={editing} />
+      )}
 
-      <ConfirmDelete
-        open={!!toDelete}
-        onOpenChange={(v) => !v && setToDelete(null)}
-        title="Excluir lead?"
-        description={`O lead ${toDelete?.company_name || ""} e seu histórico serão removidos.`}
-        onConfirm={() => {
-          if (toDelete) deleteLead(toDelete.id);
-          setToDelete(null);
-        }}
-      />
+      {isAdmin && (
+        <ConfirmDelete
+          open={!!toDelete}
+          onOpenChange={(v) => !v && setToDelete(null)}
+          title="Excluir lead?"
+          description={`O lead ${toDelete?.company_name || ""} e seu histórico serão removidos.`}
+          onConfirm={() => {
+            if (toDelete) deleteLead(toDelete.id);
+            setToDelete(null);
+          }}
+        />
+      )}
     </>
   );
 }
