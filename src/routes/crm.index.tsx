@@ -50,9 +50,10 @@ const ADMIN_EMAILS = [
 function CrmListPage() {
   const { leads, deleteLead, loading } = useLeads();
 
-  // 2. Substitua esta variável pelo método que puxa o e-mail do utilizador logado no seu sistema
-  // Exemplo: const { user } = useAuth(); const userEmail = user?.email;
-  const userEmail = "zzlucasbritozz@gmail.com"; 
+  // Se você tiver um hook de autenticação, importe ele e use assim:
+  // const { user } = useAuth();
+  // const userEmail = user?.email;
+
   const isAdmin = ADMIN_EMAILS.includes(userEmail || "");
 
   const [query, setQuery] = useState("");
