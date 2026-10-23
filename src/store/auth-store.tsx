@@ -10,11 +10,6 @@ import {
 
 import { supabase } from "@/lib/supabase";
 
-/**
- * Autenticação da BC Labs via Supabase Auth.
- * Não há cadastro público: os 3 sócios são convidados manualmente pelo painel do Supabase.
- */
-
 export interface AuthUser {
   id: string;
   name: string;
@@ -24,12 +19,20 @@ export interface AuthUser {
 interface AuthState {
   user: AuthUser | null;
   ready: boolean;
+  isAdmin: boolean; // NOVO: Controle global de permissões
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => void;
   updateProfile: (patch: Partial<AuthUser>) => void;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
+
+// E-mails com poder total na plataforma
+const ADMIN_EMAILS = [
+  "gabriel.cheles10@gmail.com",
+  "zzlucasbritozz@gmail.com",
+  "etecmurillo@gmail.com"
+];
 
 function toAuthUser(supabaseUser: {
   id: string;
@@ -75,9 +78,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // Verifica se o email do usuário atual está na lista de admins
+  const isAdmin = useMemo(() => {
+    return user?.email ? ADMIN_EMAILS.includes(user.email) : false;
+  }, [user]);
+
   const value = useMemo<AuthState>(
-    () => ({ user, ready, signIn, signOut, updateProfile }),
-    [user, ready, signIn, signOut, updateProfile],
+    () => ({ user, ready, isAdmin, signIn, signOut, updateProfile }),
+    [user, ready, isAdmin, signIn, signOut, updateProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

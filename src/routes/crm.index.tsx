@@ -11,50 +11,26 @@ import { LeadDialog } from "@/components/crm/lead-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDate, formatNumber } from "@/lib/format";
 import { compareLeadPriority } from "@/lib/lead-priority";
 import { useLeads } from "@/store/leads-store";
+import { useAuth } from "@/store/auth-store";
 import { LEAD_STATUSES, LEAD_STATUS_LABELS, type Lead, type LeadStatus } from "@/types";
 
 export const Route = createFileRoute("/crm/")({
   head: () => ({
-    meta: [
-      { title: "CRM — Lista de leads — BC Labs" },
-      { name: "description", content: "Lista de leads em prospecção da BC Labs." },
-      { property: "og:title", content: "CRM — Lista de leads — BC Labs" },
-      { property: "og:description", content: "Lista de leads em prospecção da BC Labs." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
+    meta: [{ title: "CRM — Lista de leads — BC Labs" }],
   }),
   component: CrmListPage,
 });
 
 type SortKey = "company_name" | "score" | "priority" | "created_at";
 
-// 1. E-mails dos sócios com acesso total (O gtato047@gmail.com fica de fora)
-const ADMIN_EMAILS = [
-  "gabriel.cheles10@gmail.com",
-  "zzlucasbritozz@gmail.com",
-  "etecmurillo@gmail.com"
-];
-
 function CrmListPage() {
   const { leads, deleteLead, loading } = useLeads();
-
-  // Se você tiver um hook de autenticação, importe ele e use assim:
-  // const { user } = useAuth();
-  // const userEmail = user?.email;
-
-  const isAdmin = ADMIN_EMAILS.includes(userEmail || "");
+  const { isAdmin } = useAuth(); // PUXA A REGRA GLOBAL DAQUI
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("all");
@@ -88,85 +64,44 @@ function CrmListPage() {
       filtered.sort((a, b) => {
         const { key, direction } = sortConfig;
         const modifier = direction === "asc" ? 1 : -1;
-
         if (key === "score") return ((a.score || 0) - (b.score || 0)) * modifier;
         if (key === "company_name") return a.company_name.localeCompare(b.company_name) * modifier;
-        if (key === "created_at") {
-          return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * modifier;
-        }
-        if (key === "priority") {
-          return direction === "desc" ? compareLeadPriority(a, b) : compareLeadPriority(b, a);
-        }
+        if (key === "created_at") return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * modifier;
+        if (key === "priority") return direction === "desc" ? compareLeadPriority(a, b) : compareLeadPriority(b, a);
         return 0;
       });
     } else {
       filtered.sort(compareLeadPriority);
     }
-
     return filtered;
   }, [leads, query, statusFilter, priorityFilter, sortConfig]);
 
   const active = leads.filter((l) => l.status !== "cliente" && l.status !== "perdido").length;
   const converted = leads.filter((l) => l.status === "cliente").length;
-  const avgScore = leads.length
-    ? Math.round(leads.reduce((a, l) => a + (l.score || 0), 0) / leads.length)
-    : 0;
+  const avgScore = leads.length ? Math.round(leads.reduce((a, l) => a + (l.score || 0), 0) / leads.length) : 0;
 
   const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
     if (sortConfig?.key !== columnKey) return <ArrowUpDown className="ml-1 size-3 opacity-30" />;
-    return sortConfig.direction === "asc" ? (
-      <ArrowUp className="ml-1 size-3 text-primary" />
-    ) : (
-      <ArrowDown className="ml-1 size-3 text-primary" />
-    );
+    return sortConfig.direction === "asc" ? <ArrowUp className="ml-1 size-3 text-primary" /> : <ArrowDown className="ml-1 size-3 text-primary" />;
   };
 
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          label="Leads em prospecção"
-          value={formatNumber(active)}
-          icon={Target}
-          loading={loading}
-          hint="ativos no funil"
-        />
-        <StatCard
-          label="Convertidos em clientes"
-          value={formatNumber(converted)}
-          icon={Users}
-          loading={loading}
-          hint="total"
-        />
-        <StatCard
-          label="Score médio"
-          value={String(avgScore)}
-          icon={Target}
-          loading={loading}
-          hint="de 0 a 100"
-        />
+        <StatCard label="Leads em prospecção" value={formatNumber(active)} icon={Target} loading={loading} hint="ativos no funil" />
+        <StatCard label="Convertidos em clientes" value={formatNumber(converted)} icon={Users} loading={loading} hint="total" />
+        <StatCard label="Score médio" value={String(avgScore)} icon={Target} loading={loading} hint="de 0 a 100" />
       </div>
 
       <SectionCard className="mt-4" bodyClassName="p-0">
         <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar lead…"
-              value={query}
-              maxLength={80}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pl-9"
-            />
+            <Input placeholder="Buscar lead…" value={query} maxLength={80} onChange={(e) => setQuery(e.target.value)} className="pl-9" />
           </div>
           
-          <Select
-            value={priorityFilter}
-            onValueChange={setPriorityFilter}
-          >
-            <SelectTrigger className="sm:w-48">
-              <SelectValue placeholder="Todas as prioridades" />
-            </SelectTrigger>
+          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <SelectTrigger className="sm:w-48"><SelectValue placeholder="Todas as prioridades" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as prioridades</SelectItem>
               <SelectItem value="alta">Prioridade Alta</SelectItem>
@@ -175,19 +110,12 @@ function CrmListPage() {
             </SelectContent>
           </Select>
 
-          <Select
-            value={statusFilter}
-            onValueChange={(v) => setStatusFilter(v as LeadStatus | "all")}
-          >
-            <SelectTrigger className="sm:w-56">
-              <SelectValue placeholder="Todos os status" />
-            </SelectTrigger>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as LeadStatus | "all")}>
+            <SelectTrigger className="sm:w-56"><SelectValue placeholder="Todos os status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os status</SelectItem>
               {LEAD_STATUSES.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {LEAD_STATUS_LABELS[s]}
-                </SelectItem>
+                <SelectItem key={s} value={s}>{LEAD_STATUS_LABELS[s]}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -201,9 +129,7 @@ function CrmListPage() {
 
         {loading ? (
           <div className="space-y-2 p-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
+            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
           </div>
         ) : rows.length === 0 ? (
           <EmptyState icon={Target} title="Nenhum lead encontrado" />
@@ -212,50 +138,21 @@ function CrmListPage() {
             <table className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th 
-                    className="cursor-pointer px-5 py-3 font-medium transition-colors hover:bg-accent/50 select-none"
-                    onClick={() => handleSort("company_name")}
-                  >
-                    <div className="flex items-center">Empresa <SortIcon columnKey="company_name" /></div>
-                  </th>
+                  <th className="cursor-pointer px-5 py-3 font-medium transition-colors hover:bg-accent/50 select-none" onClick={() => handleSort("company_name")}><div className="flex items-center">Empresa <SortIcon columnKey="company_name" /></div></th>
                   <th className="px-3 py-3 font-medium">Contato</th>
                   <th className="px-3 py-3 font-medium">Origem</th>
-                  <th 
-                    className="cursor-pointer px-3 py-3 font-medium transition-colors hover:bg-accent/50 select-none"
-                    onClick={() => handleSort("score")}
-                  >
-                    <div className="flex items-center justify-end">Score <SortIcon columnKey="score" /></div>
-                  </th>
-                  <th 
-                    className="cursor-pointer px-3 py-3 font-medium transition-colors hover:bg-accent/50 select-none"
-                    onClick={() => handleSort("priority")}
-                  >
-                    <div className="flex items-center">Prioridade <SortIcon columnKey="priority" /></div>
-                  </th>
+                  <th className="cursor-pointer px-3 py-3 font-medium transition-colors hover:bg-accent/50 select-none" onClick={() => handleSort("score")}><div className="flex items-center justify-end">Score <SortIcon columnKey="score" /></div></th>
+                  <th className="cursor-pointer px-3 py-3 font-medium transition-colors hover:bg-accent/50 select-none" onClick={() => handleSort("priority")}><div className="flex items-center">Prioridade <SortIcon columnKey="priority" /></div></th>
                   <th className="px-3 py-3 font-medium">Status</th>
-                  <th 
-                    className="cursor-pointer px-3 py-3 font-medium transition-colors hover:bg-accent/50 select-none"
-                    onClick={() => handleSort("created_at")}
-                  >
-                    <div className="flex items-center">Criado em <SortIcon columnKey="created_at" /></div>
-                  </th>
+                  <th className="cursor-pointer px-3 py-3 font-medium transition-colors hover:bg-accent/50 select-none" onClick={() => handleSort("created_at")}><div className="flex items-center">Criado em <SortIcon columnKey="created_at" /></div></th>
                   <th className="px-5 py-3 text-right font-medium">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((lead) => (
-                  <tr
-                    key={lead.id}
-                    className="group border-b border-border/60 transition-colors last:border-0 hover:bg-accent/40"
-                  >
+                  <tr key={lead.id} className="group border-b border-border/60 transition-colors last:border-0 hover:bg-accent/40">
                     <td className="px-5 py-3 font-medium">
-                      <Link
-                        to="/crm/$leadId"
-                        params={{ leadId: lead.id }}
-                        className="hover:text-primary"
-                      >
-                        {lead.company_name}
-                      </Link>
+                      <Link to="/crm/$leadId" params={{ leadId: lead.id }} className="hover:text-primary">{lead.company_name}</Link>
                     </td>
                     <td className="px-3 py-3 text-muted-foreground">
                       <div>{lead.phone || "—"}</div>
@@ -263,43 +160,24 @@ function CrmListPage() {
                     </td>
                     <td className="px-3 py-3 text-muted-foreground">{lead.source || "—"}</td>
                     <td className="px-3 py-3 text-right tabular-nums">{lead.score}</td>
-                    <td className="px-3 py-3">
-                      <LeadPriorityBadge priority={lead.priority} />
-                    </td>
-                    <td className="px-3 py-3">
-                      <LeadStatusBadge status={lead.status} />
-                    </td>
-                    <td className="px-3 py-3 text-muted-foreground">
-                      {formatDate(lead.created_at)}
-                    </td>
+                    <td className="px-3 py-3"><LeadPriorityBadge priority={lead.priority} /></td>
+                    <td className="px-3 py-3"><LeadStatusBadge status={lead.status} /></td>
+                    <td className="px-3 py-3 text-muted-foreground">{formatDate(lead.created_at)}</td>
                     <td className="px-5 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        
-                        {/* 3. A lixeira só é renderizada se o utilizador for Admin */}
                         {isAdmin && (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-8 text-muted-foreground hover:text-destructive"
-                                onClick={() => setToDelete(lead)}
-                              >
+                              <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" onClick={() => setToDelete(lead)}>
                                 <Trash2 className="size-4" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>Excluir</TooltipContent>
                           </Tooltip>
                         )}
-                        
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              asChild
-                              className="size-8 text-muted-foreground hover:text-foreground"
-                            >
+                            <Button variant="ghost" size="icon" asChild className="size-8 text-muted-foreground hover:text-foreground">
                               <Link to="/crm/$leadId" params={{ leadId: lead.id }}>
                                 <ChevronRight className="size-4" />
                               </Link>
@@ -317,9 +195,7 @@ function CrmListPage() {
         )}
       </SectionCard>
 
-      {isAdmin && (
-        <LeadDialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)} lead={editing} />
-      )}
+      {isAdmin && <LeadDialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)} lead={editing} />}
 
       {isAdmin && (
         <ConfirmDelete

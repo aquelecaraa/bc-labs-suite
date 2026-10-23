@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLeads } from "@/store/leads-store";
+import { useAuth } from "@/store/auth-store";
 
 export const Route = createFileRoute("/crm")({
   component: CrmLayout,
@@ -25,6 +26,7 @@ function CrmLayout() {
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [isProspectOpen, setIsProspectOpen] = useState(false);
   const { processPendingLeads } = useLeads();
+  const { isAdmin } = useAuth(); // Importação da regra global
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
   async function handleProcess() {
@@ -43,30 +45,38 @@ function CrmLayout() {
         description="Leads em prospecção, do primeiro contato até virar cliente."
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={handleProcess}
-              disabled={!!progress}
-              className="flex items-center gap-1.5"
-            >
-              {progress ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Processando {progress.total ? `${progress.done}/${progress.total}` : "…"}
-                </>
-              ) : (
-                <>
-                  <Sparkles className="size-4" /> Processar Leads Pendentes
-                </>
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setIsProspectOpen(true)}
-              className="flex items-center gap-1.5"
-            >
-              <Radar className="size-4" /> Buscar leads
-            </Button>
+            
+            {/* TRAVA DE SEGURANÇA: Esconde os botões de API do Apify */}
+            {isAdmin && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleProcess}
+                  disabled={!!progress}
+                  className="flex items-center gap-1.5"
+                >
+                  {progress ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Processando {progress.total ? `${progress.done}/${progress.total}` : "…"}
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="size-4" /> Processar Leads Pendentes
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsProspectOpen(true)}
+                  className="flex items-center gap-1.5"
+                >
+                  <Radar className="size-4" /> Buscar leads
+                </Button>
+              </>
+            )}
+
+            {/* Este botão fica visível para todos adicionarem leads manualmente */}
             <Button onClick={() => setIsNewOpen(true)} className="flex items-center gap-1.5">
               <Plus className="size-4" /> Novo lead
             </Button>
@@ -98,7 +108,7 @@ function CrmLayout() {
       <Outlet />
 
       <LeadDialog open={isNewOpen} onOpenChange={setIsNewOpen} />
-      <ProspectDialog open={isProspectOpen} onOpenChange={setIsProspectOpen} />
+      {isAdmin && <ProspectDialog open={isProspectOpen} onOpenChange={setIsProspectOpen} />}
     </AppShell>
   );
 }
