@@ -147,6 +147,14 @@ export interface Lead extends BaseRecord {
   postal_code?: string | undefined;
   category?: string | undefined;
   instagram?: string | undefined;
+  
+  // NOVOS CAMPOS DO BC AI (Integração Claude + Apify)
+  profile_id?: string | null | undefined;
+  complaint_theme?: string | null | undefined;
+  complaint_summary?: string | null | undefined;
+  ai_message_a?: string | null | undefined;
+  ai_message_b?: string | null | undefined;
+  ai_message_c?: string | null | undefined;
 }
 
 export interface LeadActivity {

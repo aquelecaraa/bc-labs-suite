@@ -30,7 +30,7 @@ type SortKey = "company_name" | "score" | "priority" | "created_at";
 
 function CrmListPage() {
   const { leads, deleteLead, loading } = useLeads();
-  const { isAdmin } = useAuth(); // PUXA A REGRA GLOBAL DAQUI
+  const { isAdmin } = useAuth(); // Trava global de segurança
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("all");
@@ -57,7 +57,7 @@ function CrmListPage() {
         return p === priorityFilter;
       })
       .filter((l) =>
-        q ? `${l.company_name} ${l.phone ?? ""} ${l.source ?? ""}`.toLowerCase().includes(q) : true,
+        q ? `${l.company_name} ${l.phone ?? ""} ${l.source ?? ""} ${l.complaint_theme ?? ""}`.toLowerCase().includes(q) : true,
       );
 
     if (sortConfig) {
@@ -97,7 +97,7 @@ function CrmListPage() {
         <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar lead…" value={query} maxLength={80} onChange={(e) => setQuery(e.target.value)} className="pl-9" />
+            <Input placeholder="Buscar lead, cidade ou problema…" value={query} maxLength={80} onChange={(e) => setQuery(e.target.value)} className="pl-9" />
           </div>
           
           <Select value={priorityFilter} onValueChange={setPriorityFilter}>
@@ -135,16 +135,16 @@ function CrmListPage() {
           <EmptyState icon={Target} title="Nenhum lead encontrado" />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
+            <table className="w-full min-w-[1000px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
                   <th className="cursor-pointer px-5 py-3 font-medium transition-colors hover:bg-accent/50 select-none" onClick={() => handleSort("company_name")}><div className="flex items-center">Empresa <SortIcon columnKey="company_name" /></div></th>
-                  <th className="px-3 py-3 font-medium">Contato</th>
+                  <th className="px-3 py-3 font-medium">Nota Google</th>
+                  <th className="px-3 py-3 font-medium">Tema (Gargalo)</th>
                   <th className="px-3 py-3 font-medium">Origem</th>
                   <th className="cursor-pointer px-3 py-3 font-medium transition-colors hover:bg-accent/50 select-none" onClick={() => handleSort("score")}><div className="flex items-center justify-end">Score <SortIcon columnKey="score" /></div></th>
                   <th className="cursor-pointer px-3 py-3 font-medium transition-colors hover:bg-accent/50 select-none" onClick={() => handleSort("priority")}><div className="flex items-center">Prioridade <SortIcon columnKey="priority" /></div></th>
                   <th className="px-3 py-3 font-medium">Status</th>
-                  <th className="cursor-pointer px-3 py-3 font-medium transition-colors hover:bg-accent/50 select-none" onClick={() => handleSort("created_at")}><div className="flex items-center">Criado em <SortIcon columnKey="created_at" /></div></th>
                   <th className="px-5 py-3 text-right font-medium">Ações</th>
                 </tr>
               </thead>
@@ -154,17 +154,28 @@ function CrmListPage() {
                     <td className="px-5 py-3 font-medium">
                       <Link to="/crm/$leadId" params={{ leadId: lead.id }} className="hover:text-primary">{lead.company_name}</Link>
                     </td>
+                    <td className="px-3 py-3">
+                      {lead.google_rating ? (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium text-amber-500">{lead.google_rating.toFixed(1)}</span>
+                          <span className="text-xs text-muted-foreground">({lead.google_reviews_count})</span>
+                        </div>
+                      ) : "—"}
+                    </td>
                     <td className="px-3 py-3 text-muted-foreground">
-                      <div>{lead.phone || "—"}</div>
-                      <div className="text-xs truncate max-w-[160px]">{lead.website || ""}</div>
+                      {lead.complaint_theme ? (
+                        <span className="inline-flex items-center rounded-md bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive ring-1 ring-inset ring-destructive/20">
+                          {lead.complaint_theme}
+                        </span>
+                      ) : "—"}
                     </td>
                     <td className="px-3 py-3 text-muted-foreground">{lead.source || "—"}</td>
                     <td className="px-3 py-3 text-right tabular-nums">{lead.score}</td>
                     <td className="px-3 py-3"><LeadPriorityBadge priority={lead.priority} /></td>
                     <td className="px-3 py-3"><LeadStatusBadge status={lead.status} /></td>
-                    <td className="px-3 py-3 text-muted-foreground">{formatDate(lead.created_at)}</td>
                     <td className="px-5 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {/* ⚠️ Bloqueio de exclusão do lead (Só Admins podem deletar) */}
                         {isAdmin && (
                           <Tooltip>
                             <TooltipTrigger asChild>
