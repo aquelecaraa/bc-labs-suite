@@ -21,13 +21,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-// ⚠️ Confirme este caminho: é o cliente Supabase padrão do Lovable.
-import { supabase } from "@/lib/supabase";
 import { DEFAULT_CITY, DEFAULT_STATE } from "@/lib/prospect/constants";
+import { supabase } from "@/lib/supabase";
 import { useLeads } from "@/store/leads-store";
 
-// As tabelas novas ainda não estão nos tipos gerados do Supabase.
-// Depois de regenerar os tipos, dá para trocar `db` por `supabase`.
+// As tabelas novas (search_profiles, search_runs, search_discards) ainda não estão
+// nos tipos gerados do Supabase. Depois de regenerar os tipos, troque `db` por `supabase`.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 
@@ -62,6 +61,22 @@ interface Progress {
   imported: number;
 }
 
+interface DiscardedPlace {
+  name: string;
+  reason: string;
+  detail: string | null;
+  rating: number | null;
+  reviews_count: number | null;
+  category: string | null;
+}
+
+// O nome da função que recarrega os leads varia no store; tentamos os nomes comuns.
+type LeadsReload = {
+  fetchLeads?: () => Promise<unknown> | unknown;
+  loadLeads?: () => Promise<unknown> | unknown;
+  refresh?: () => Promise<unknown> | unknown;
+};
+
 const EMPTY: Progress = { scraped: 0, approved: 0, imported: 0 };
 const NEW_PROFILE = "new";
 
@@ -78,7 +93,8 @@ const DEFAULT_FORM: Form = {
   reviewsPerPlace: "20",
 };
 
-const toNumber = (v: string) => Number(v.replace(",", "."));
+// Campo vazio vira NaN (e é recusado), em vez de virar 0 sem aviso
+const toNumber = (v: string) => (v.trim() === "" ? NaN : Number(v.replace(",", ".")));
 const splitList = (v: string, sep: string) =>
   v
     .split(sep)
@@ -120,9 +136,8 @@ export function ProspectDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
-  
-  const leadsStore = useLeads() as any;
-  const refresh = leadsStore.fetchLeads || leadsStore.loadLeads || leadsStore.refresh;
+  const leadsStore = useLeads() as unknown as LeadsReload;
+  const refresh = leadsStore.fetchLeads ?? leadsStore.loadLeads ?? leadsStore.refresh;
 
   const [profiles, setProfiles] = useState<SearchProfile[]>([]);
   const [profileId, setProfileId] = useState<string>(NEW_PROFILE);
@@ -132,6 +147,7 @@ export function ProspectDialog({
   const [progress, setProgress] = useState<Progress>(EMPTY);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [reasons, setReasons] = useState<Record<string, number>>({});
+  const [discarded, setDiscarded] = useState<DiscardedPlace[]>([]);
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -251,6 +267,7 @@ export function ProspectDialog({
     setErrorMsg(null);
     setProgress(EMPTY);
     setReasons({});
+    setDiscarded([]);
 
     try {
       const id = await persistProfile();
@@ -264,26 +281,55 @@ export function ProspectDialog({
 
       // Acompanha a execução (a função roda em segundo plano)
       const deadline = Date.now() + 6 * 60_000;
-      while (Date.now() < deadline && mounted.current) {
+      let pollErrors = 0;
+      while (Date.now() < deadline) {
         await sleep(4000);
+        if (!mounted.current) return;
+
         const { data: run, error: runErr } = await db
           .from("search_runs")
           .select("status, places_scraped, leads_found, leads_new, discard_reasons, error")
           .eq("id", runId)
           .single();
-        if (runErr) throw new Error(runErr.message);
+
+        // Tolera falhas passageiras de rede: a busca continua rodando no servidor
+        if (runErr || !run) {
+          pollErrors += 1;
+          if (pollErrors >= 3) {
+            throw new Error(runErr?.message ?? "Não foi possível acompanhar a busca.");
+          }
+          continue;
+        }
+        pollErrors = 0;
 
         setProgress({
           scraped: run.places_scraped,
           approved: run.leads_found,
           imported: run.leads_new,
         });
-
         setReasons((run.discard_reasons ?? {}) as Record<string, number>);
 
         if (run.status === "failed") throw new Error(run.error ?? "A busca falhou.");
+
         if (run.status === "succeeded") {
-          if (refresh) await refresh();
+          // Lista de lugares descartados e o motivo de cada um
+          const { data: dis } = await db
+            .from("search_discards")
+            .select("name, reason, detail, rating, reviews_count, category")
+            .eq("run_id", runId)
+            .order("reason")
+            .limit(500);
+          setDiscarded((dis ?? []) as DiscardedPlace[]);
+
+          // Os leads já foram salvos; se recarregar a lista falhar, não é erro da busca
+          if (refresh) {
+            try {
+              await refresh();
+            } catch {
+              toast.info("Leads salvos. Atualize a página para vê-los.");
+            }
+          }
+
           if (run.leads_new > 0) {
             toast.success(`${run.leads_new} leads novos no CRM.`);
             if (!refresh) toast.info("Atualize a página para ver os novos leads.");
@@ -295,7 +341,9 @@ export function ProspectDialog({
           return;
         }
       }
-      throw new Error("A busca demorou mais que o esperado. Veja o histórico de execuções e tente de novo.");
+      throw new Error(
+        "A busca demorou mais que o esperado. Veja o histórico de execuções e tente de novo.",
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Falha inesperada na busca.";
       setErrorMsg(message);
@@ -483,6 +531,34 @@ export function ProspectDialog({
                 </p>
               ))}
             </div>
+          )}
+
+          {discarded.length > 0 && (
+            <details className="rounded-lg border border-border p-3 text-xs">
+              <summary className="cursor-pointer font-medium text-foreground">
+                Ver os {discarded.length} lugares descartados e o porquê
+              </summary>
+              <ul className="mt-2 max-h-56 space-y-2 overflow-y-auto pr-1 text-muted-foreground">
+                {discarded.map((d, i) => (
+                  <li key={`${d.name}-${i}`} className="border-b border-border/60 pb-2 last:border-0">
+                    <p className="font-medium text-foreground">{d.name}</p>
+                    <p>
+                      {d.reason}
+                      {d.detail ? ` — ${d.detail}` : ""}
+                    </p>
+                    <p className="opacity-70">
+                      {[
+                        d.rating != null ? `nota ${String(d.rating).replace(".", ",")}` : null,
+                        d.reviews_count != null ? `${d.reviews_count} avaliações` : null,
+                        d.category,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </details>
           )}
 
           {errorMsg && <p className="text-xs text-destructive">{errorMsg}</p>}
