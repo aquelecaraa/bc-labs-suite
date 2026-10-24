@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 // ⚠️ Confirme este caminho: é o cliente Supabase padrão do Lovable.
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { DEFAULT_CITY, DEFAULT_STATE } from "@/lib/prospect/constants";
 import { useLeads } from "@/store/leads-store";
 
