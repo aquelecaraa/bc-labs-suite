@@ -53,3 +53,17 @@ export function whatsappLink(international: string, message?: string): string {
   const base = `https://wa.me/${international}`;
   return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 }
+
+export type PhoneType = "movel" | "fixo" | "desconhecido";
+
+export function classifyPhone(raw?: string | null): PhoneType | null {
+  if (!raw) return null;
+  let d = raw.replace(/\D/g, "");
+  if (!d) return null;
+  if (/^0[38]00/.test(d)) return "desconhecido";
+  if (/^55\d{10,11}$/.test(d)) d = d.slice(2);
+  if (/^0\d{10,11}$/.test(d)) d = d.slice(1);
+  if (/^[1-9]\d9\d{8}$/.test(d)) return "movel";
+  if (/^[1-9]\d[2-5]\d{7}$/.test(d)) return "fixo";
+  return "desconhecido";
+}

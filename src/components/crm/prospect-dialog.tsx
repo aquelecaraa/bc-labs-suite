@@ -21,11 +21,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-
-// IMPORTAÇÃO CORRIGIDA PARA O SEU PROJETO:
-import { supabase } from "@/lib/supabase"; 
+// ⚠️ Confirme este caminho: é o cliente Supabase padrão do Lovable.
+import { supabase } from "@/integrations/supabase/client";
+import { DEFAULT_CITY, DEFAULT_STATE } from "@/lib/prospect/constants";
 import { useLeads } from "@/store/leads-store";
 
+// As tabelas novas ainda não estão nos tipos gerados do Supabase.
+// Depois de regenerar os tipos, dá para trocar `db` por `supabase`.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 
 interface SearchProfile {
@@ -43,8 +46,8 @@ interface SearchProfile {
 
 interface Form {
   name: string;
-  terms: string;
-  locations: string;
+  terms: string; // separados por vírgula
+  locations: string; // separadas por ponto e vírgula
   limit: string;
   minRating: string;
   maxRating: string;
@@ -64,19 +67,23 @@ const NEW_PROFILE = "new";
 
 const DEFAULT_FORM: Form = {
   name: "",
-  terms: "clínica de estética, consultório odontológico",
-  locations: "São Bernardo do Campo, SP",
+  // Alto ticket: evita postos de saúde e clínicas populares
+  terms: "Harmonização Facial, Implantes Dentários, Odontologia Estética",
+  locations: `${DEFAULT_CITY}, ${DEFAULT_STATE}`,
   limit: "25",
   minRating: "3.5",
-  maxRating: "4.2",
-  onlyWithoutWebsite: true,
+  maxRating: "4.5",
+  onlyWithoutWebsite: false, // falta de site vira bônus no score, não descarte
   minReviews: "10",
   reviewsPerPlace: "20",
 };
 
 const toNumber = (v: string) => Number(v.replace(",", "."));
 const splitList = (v: string, sep: string) =>
-  v.split(sep).map((s) => s.trim()).filter(Boolean);
+  v
+    .split(sep)
+    .map((s) => s.trim())
+    .filter(Boolean);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function profileToForm(p: SearchProfile): Form {
@@ -114,7 +121,6 @@ export function ProspectDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   
-  // ATUALIZAÇÃO CORRIGIDA PARA O SEU ZUSTAND (tenta fetchLeads, loadLeads ou refresh)
   const leadsStore = useLeads() as any;
   const refresh = leadsStore.fetchLeads || leadsStore.loadLeads || leadsStore.refresh;
 
@@ -125,6 +131,7 @@ export function ProspectDialog({
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState<Progress>(EMPTY);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [reasons, setReasons] = useState<Record<string, number>>({});
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -158,6 +165,7 @@ export function ProspectDialog({
 
   useEffect(() => {
     if (open) void loadProfiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   function handleSelectProfile(id: string) {
@@ -170,6 +178,7 @@ export function ProspectDialog({
     if (p) setForm(profileToForm(p));
   }
 
+  /** Valida o formulário e devolve o payload para a tabela search_profiles. */
   function buildPayload() {
     const terms = splitList(form.terms, ",");
     const locations = splitList(form.locations, ";");
@@ -203,6 +212,7 @@ export function ProspectDialog({
     };
   }
 
+  /** Cria ou atualiza o perfil e devolve o id. */
   async function persistProfile(): Promise<string> {
     const payload = buildPayload();
     if (profileId === NEW_PROFILE) {
@@ -240,6 +250,7 @@ export function ProspectDialog({
     setRunning(true);
     setErrorMsg(null);
     setProgress(EMPTY);
+    setReasons({});
 
     try {
       const id = await persistProfile();
@@ -251,12 +262,13 @@ export function ProspectDialog({
       const runId = (data as { run_id?: string })?.run_id;
       if (!runId) throw new Error("A busca não retornou um identificador de execução.");
 
+      // Acompanha a execução (a função roda em segundo plano)
       const deadline = Date.now() + 6 * 60_000;
       while (Date.now() < deadline && mounted.current) {
         await sleep(4000);
         const { data: run, error: runErr } = await db
           .from("search_runs")
-          .select("status, places_scraped, leads_found, leads_new, error")
+          .select("status, places_scraped, leads_found, leads_new, discard_reasons, error")
           .eq("id", runId)
           .single();
         if (runErr) throw new Error(runErr.message);
@@ -266,6 +278,8 @@ export function ProspectDialog({
           approved: run.leads_found,
           imported: run.leads_new,
         });
+
+        setReasons((run.discard_reasons ?? {}) as Record<string, number>);
 
         if (run.status === "failed") throw new Error(run.error ?? "A busca falhou.");
         if (run.status === "succeeded") {
@@ -301,7 +315,8 @@ export function ProspectDialog({
             <Radar className="size-4 text-primary" /> Buscar leads no Google Maps
           </DialogTitle>
           <DialogDescription>
-            As empresas são filtradas, pontuadas e recebem um diagnóstico BC AI.
+            As empresas são filtradas, pontuadas e recebem uma mensagem pronta de WhatsApp. Nada é
+            enviado automaticamente.
           </DialogDescription>
         </DialogHeader>
 
@@ -337,7 +352,7 @@ export function ProspectDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="prospect-niche">Nicho (separados por vírgula)</Label>
+            <Label htmlFor="prospect-niche">Nicho (um ou mais termos, separados por vírgula)</Label>
             <Textarea
               id="prospect-niche"
               value={form.terms}
@@ -349,7 +364,9 @@ export function ProspectDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="prospect-locations">Cidades (separadas por ponto e vírgula)</Label>
+            <Label htmlFor="prospect-locations">
+              Cidades (separadas por ponto e vírgula, com o estado)
+            </Label>
             <Textarea
               id="prospect-locations"
               value={form.locations}
@@ -364,30 +381,74 @@ export function ProspectDialog({
           <div className="grid gap-3 sm:grid-cols-4">
             <div className="space-y-1.5">
               <Label htmlFor="prospect-min-rating">Nota mínima</Label>
-              <Input id="prospect-min-rating" inputMode="decimal" value={form.minRating} onChange={(e) => set("minRating", e.target.value)} disabled={busy} />
+              <Input
+                id="prospect-min-rating"
+                inputMode="decimal"
+                value={form.minRating}
+                onChange={(e) => set("minRating", e.target.value)}
+                disabled={busy}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="prospect-max-rating">Nota máxima</Label>
-              <Input id="prospect-max-rating" inputMode="decimal" value={form.maxRating} onChange={(e) => set("maxRating", e.target.value)} disabled={busy} />
+              <Input
+                id="prospect-max-rating"
+                inputMode="decimal"
+                value={form.maxRating}
+                onChange={(e) => set("maxRating", e.target.value)}
+                disabled={busy}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="prospect-min-reviews">Mín. avaliações</Label>
-              <Input id="prospect-min-reviews" type="number" min={0} value={form.minReviews} onChange={(e) => set("minReviews", e.target.value)} disabled={busy} />
+              <Input
+                id="prospect-min-reviews"
+                type="number"
+                min={0}
+                value={form.minReviews}
+                onChange={(e) => set("minReviews", e.target.value)}
+                disabled={busy}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="prospect-limit">Máx. de leads</Label>
-              <Input id="prospect-limit" type="number" min={1} max={100} value={form.limit} onChange={(e) => set("limit", e.target.value)} disabled={busy} />
+              <Input
+                id="prospect-limit"
+                type="number"
+                min={1}
+                max={100}
+                value={form.limit}
+                onChange={(e) => set("limit", e.target.value)}
+                disabled={busy}
+              />
             </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" className="size-4 accent-primary" checked={form.onlyWithoutWebsite} onChange={(e) => set("onlyWithoutWebsite", e.target.checked)} disabled={busy} />
+              <input
+                type="checkbox"
+                className="size-4 accent-primary"
+                checked={form.onlyWithoutWebsite}
+                onChange={(e) => set("onlyWithoutWebsite", e.target.checked)}
+                disabled={busy}
+              />
               Apenas empresas sem site
             </label>
             <div className="flex items-center gap-2">
-              <Label htmlFor="prospect-reviews" className="whitespace-nowrap text-sm font-normal">Avaliações por lugar</Label>
-              <Input id="prospect-reviews" type="number" min={0} max={50} className="w-20" value={form.reviewsPerPlace} onChange={(e) => set("reviewsPerPlace", e.target.value)} disabled={busy} />
+              <Label htmlFor="prospect-reviews" className="whitespace-nowrap text-sm font-normal">
+                Avaliações lidas por lugar
+              </Label>
+              <Input
+                id="prospect-reviews"
+                type="number"
+                min={0}
+                max={50}
+                className="w-20"
+                value={form.reviewsPerPlace}
+                onChange={(e) => set("reviewsPerPlace", e.target.value)}
+                disabled={busy}
+              />
             </div>
           </div>
 
@@ -408,17 +469,32 @@ export function ProspectDialog({
 
           {running && (
             <p className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="size-3.5 animate-spin" /> Buscando no Google Maps… isso pode levar alguns minutos.
+              <Loader2 className="size-3.5 animate-spin" /> Buscando no Google Maps… isso pode levar
+              alguns minutos.
             </p>
+          )}
+
+          {Object.keys(reasons).length > 0 && (
+            <div className="space-y-1 rounded-lg border border-border p-3 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground">Motivos de descarte</p>
+              {Object.entries(reasons).map(([reason, count]) => (
+                <p key={reason}>
+                  {reason}: {count}
+                </p>
+              ))}
+            </div>
           )}
 
           {errorMsg && <p className="text-xs text-destructive">{errorMsg}</p>}
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" disabled={running} onClick={() => onOpenChange(false)}>Fechar</Button>
+          <Button variant="ghost" disabled={running} onClick={() => onOpenChange(false)}>
+            Fechar
+          </Button>
           <Button variant="outline" onClick={handleSave} disabled={busy}>
-            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Salvar perfil
+            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            Salvar perfil
           </Button>
           <Button onClick={handleSearch} disabled={busy}>
             {running ? <Loader2 className="size-4 animate-spin" /> : <Radar className="size-4" />}
