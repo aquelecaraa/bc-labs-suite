@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ChevronRight, Plus, Search, Trash2, UserPlus, Users, Wallet, X } from "lucide-react";
+import { ChevronRight, Plus, Search, Trash2, UserPlus, Users, Wallet, X, Globe } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -25,8 +25,6 @@ export const Route = createFileRoute("/clientes/")({
     meta: [
       { title: "Clientes — BC Labs" },
       { name: "description", content: "Base de clientes da BC Labs com receita, compras e histórico." },
-      { property: "og:title", content: "Clientes — BC Labs" },
-      { property: "og:description", content: "Base de clientes e receita por cliente da BC Labs." },
     ],
   }),
   component: ClientsPage,
@@ -34,7 +32,7 @@ export const Route = createFileRoute("/clientes/")({
 
 function ClientsPage() {
   const { clients, sales, deleteClient, addClient, loading } = useData();
-  const { isAdmin } = useAuth(); // Trava global
+  const { isAdmin } = useAuth(); 
 
   const [query, setQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -44,6 +42,7 @@ function ClientsPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [website, setWebsite] = useState(""); // <-- NOVO ESTADO
   const [isSaving, setIsSaving] = useState(false);
 
   const handleCreateClient = async (e: React.FormEvent) => {
@@ -56,15 +55,19 @@ function ClientsPage() {
         name: name.trim(),
         email: email.trim() || "",
         phone: phone.trim() || "",
+        website: website.trim() || "", // <-- INSERE O SITE
         status: "active",
-      });
+      } as any);
 
       setName("");
       setEmail("");
       setPhone("");
+      setWebsite("");
       setIsModalOpen(false);
+      toast.success("Cliente cadastrado com sucesso!");
     } catch (err) {
       console.error(err);
+      toast.error("Erro ao cadastrar cliente.");
     } finally {
       setIsSaving(false);
     }
@@ -80,7 +83,7 @@ function ClientsPage() {
         return { client: c, total, purchases: cs.length, last };
       })
       .filter(({ client }) =>
-        q ? `${client.name} ${client.email || ""} ${client.phone || ""}`.toLowerCase().includes(q) : true,
+        q ? `${client.name} ${client.email || ""} ${client.phone || ""} ${client.website || ""}`.toLowerCase().includes(q) : true,
       )
       .sort((a, b) => b.total - a.total);
   }, [clients, sales, query]);
@@ -93,6 +96,12 @@ function ClientsPage() {
   const active = clients.filter((c) => c.status === "active").length;
   const totalRevenue = rows.reduce((a, r) => a + r.total, 0);
   const totalPurchases = rows.reduce((a, r) => a + r.purchases, 0);
+
+  // Função auxiliar para formatar a URL
+  const formatUrl = (url: string) => {
+    if (!url) return "";
+    return url.startsWith("http") ? url : `https://${url}`;
+  };
 
   return (
     <AppShell>
@@ -117,7 +126,7 @@ function ClientsPage() {
         <div className="border-b border-border p-4">
           <div className="relative">
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar cliente…" value={query} maxLength={80} onChange={(e) => setQuery(e.target.value)} className="pl-9" />
+            <Input placeholder="Buscar cliente ou site…" value={query} maxLength={80} onChange={(e) => setQuery(e.target.value)} className="pl-9" />
           </div>
         </div>
 
@@ -133,7 +142,7 @@ function ClientsPage() {
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
                   <th className="px-5 py-3 font-medium">Cliente</th>
-                  <th className="px-3 py-3 font-medium">Contato</th>
+                  <th className="px-3 py-3 font-medium">Contato & Site</th>
                   <th className="px-3 py-3 text-right font-medium">Total gasto</th>
                   <th className="px-3 py-3 text-right font-medium">Compras</th>
                   <th className="px-3 py-3 font-medium">Última compra</th>
@@ -150,6 +159,19 @@ function ClientsPage() {
                     <td className="px-3 py-3 text-muted-foreground">
                       <div>{client.email || "—"}</div>
                       <div className="text-xs">{client.phone || "—"}</div>
+                      
+                      {/* Ícone de link para o site criado */}
+                      {client.website && (
+                        <a 
+                          href={formatUrl(client.website)} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="mt-1 flex items-center gap-1 text-[11px] text-blue-500 hover:text-blue-600 hover:underline w-fit"
+                        >
+                          <Globe className="size-3" />
+                          {client.website.replace(/^https?:\/\//, '')}
+                        </a>
+                      )}
                     </td>
                     <td className="px-3 py-3 text-right tabular-nums">{formatBRL(total)}</td>
                     <td className="px-3 py-3 text-right tabular-nums">{formatNumber(purchases)}</td>
@@ -158,7 +180,6 @@ function ClientsPage() {
                     <td className="px-5 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         
-                        {/* Bloqueio da Lixeira */}
                         {isAdmin && (
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -209,14 +230,23 @@ function ClientsPage() {
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Nome Completo *</label>
                 <Input required placeholder="Ex: João Silva" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">E-mail</label>
-                <Input type="email" placeholder="joao@exemplo.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">E-mail</label>
+                  <Input type="email" placeholder="joao@exemplo.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Telefone / WhatsApp</label>
+                  <Input placeholder="(11) 99999-9999" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                </div>
               </div>
+              
+              {/* NOVO CAMPO: Site */}
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Telefone / WhatsApp</label>
-                <Input placeholder="(11) 99999-9999" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Site / Domínio (Opcional)</label>
+                <Input placeholder="exemplo.com.br" value={website} onChange={(e) => setWebsite(e.target.value)} />
               </div>
+
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
                 <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
                 <Button type="submit" disabled={isSaving}>{isSaving ? "Salvando..." : "Cadastrar Cliente"}</Button>
@@ -235,6 +265,7 @@ function ClientsPage() {
           onConfirm={() => {
             if (toDelete) {
               deleteClient(toDelete.id);
+              toast.success("Cliente excluído.");
             }
             setToDelete(null);
           }}

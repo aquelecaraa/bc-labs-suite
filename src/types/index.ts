@@ -14,6 +14,7 @@ export interface Client extends BaseRecord {
   name: string;
   email: string;
   phone: string;
+  website?: string | null;
   status: ClientStatus;
   notes?: string | undefined;
 }
