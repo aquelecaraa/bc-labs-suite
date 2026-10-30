@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Eye, Pencil, Plus, Search, ShoppingCart, Trash2, TrendingUp, Wallet } from "lucide-react";
+import { Eye, Pencil, Plus, Search, ShoppingCart, Trash2, TrendingUp, Wallet, Repeat } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -78,7 +78,6 @@ function SalesPage() {
         q ? `${clientName(s.client_id)} ${s.product} ${s.payment_method}`.toLowerCase().includes(q) : true,
       )
       .sort((a, b) => (a.date < b.date ? 1 : -1));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sales, range, query, clientFilter, statusFilter, productFilter, clients]);
 
   const products = useMemo(
@@ -191,7 +190,16 @@ function SalesPage() {
                 {filtered.map((s) => (
                   <tr key={s.id} className="border-b border-border/60 transition-colors last:border-0 hover:bg-accent/40">
                     <td className="px-5 py-3 font-medium">{clientName(s.client_id)}</td>
-                    <td className="px-3 py-3 text-muted-foreground">{s.product}</td>
+                    <td className="px-3 py-3 text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        {s.product}
+                        {s.recurring && (
+                          <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-500">
+                            <Repeat className="size-3" /> Mensal
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-3 py-3 text-muted-foreground">{formatDate(s.date)}</td>
                     <td className="px-3 py-3 text-right tabular-nums">{formatBRL(s.gross)}</td>
                     <td className="px-3 py-3 text-right text-muted-foreground tabular-nums">{formatBRL(s.fees)}</td>
@@ -212,7 +220,6 @@ function SalesPage() {
                         >
                           <Pencil className="size-4" />
                         </IconAction>
-                        {/* Bloqueio da Lixeira */}
                         {isAdmin && (
                           <IconAction label="Excluir" destructive onClick={() => setToDelete(s)}>
                             <Trash2 className="size-4" />
@@ -247,6 +254,16 @@ function SalesPage() {
               <Row label="Valor líquido" value={formatBRL(saleNet(detail))} />
               <Row label="Lucro" value={formatBRL(saleProfit(detail))} />
               <Row label="Margem" value={formatPercent(saleMargin(detail))} />
+              
+              {detail.recurring && (
+                <div className="flex items-center justify-between border-t border-border pt-2">
+                  <span className="text-muted-foreground">Recorrência</span>
+                  <span className="inline-flex items-center gap-1 font-medium text-blue-500">
+                    <Repeat className="size-3.5" /> Mensalidade
+                  </span>
+                </div>
+              )}
+
               <div className="flex items-center justify-between border-t border-border pt-2">
                 <span className="text-muted-foreground">Status</span>
                 <StatusBadge status={detail.status} />

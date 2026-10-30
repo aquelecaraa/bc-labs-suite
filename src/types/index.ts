@@ -22,12 +22,13 @@ export interface Client extends BaseRecord {
 export interface Sale extends BaseRecord {
   client_id: string;
   product: string;
-  date: string; // ISO date
+  date: string; 
   gross: number;
   fees: number;
   costs: number;
   payment_method: string;
   status: SaleStatus;
+  recurring?: boolean; // <-- NOVA LINHA (Identifica se é mensalidade)
   notes?: string | undefined;
 }
 

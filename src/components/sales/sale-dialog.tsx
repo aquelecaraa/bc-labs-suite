@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { Repeat } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +36,7 @@ const schema = z.object({
   costs: z.number().nonnegative("Custo inválido"),
   payment_method: z.string().min(1),
   status: z.enum(["paid", "pending", "canceled"]),
+  recurring: z.boolean().optional(),
   notes: z.string().max(500),
 });
 
@@ -47,6 +49,7 @@ const emptyForm = () => ({
   costs: "",
   payment_method: PAYMENT_METHODS[0] as string,
   status: "paid" as SaleStatus,
+  recurring: false,
   notes: "",
 });
 
@@ -77,6 +80,7 @@ export function SaleDialog({
             costs: String(sale.costs),
             payment_method: sale.payment_method,
             status: sale.status,
+            recurring: sale.recurring ?? false,
             notes: sale.notes ?? "",
           }
         : { ...emptyForm(), client_id: clients[0]?.id ?? "" },
@@ -241,6 +245,24 @@ export function SaleDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* CHECKBOX DE RECORRÊNCIA MENSAL */}
+          <div className="flex items-center space-x-2 rounded-lg border border-border bg-muted/20 p-3">
+            <input
+              type="checkbox"
+              id="recurring"
+              className="size-4 rounded border-border accent-primary"
+              checked={form.recurring}
+              onChange={(e) => setForm({ ...form, recurring: e.target.checked })}
+            />
+            <label
+              htmlFor="recurring"
+              className="flex items-center gap-1.5 text-sm font-medium cursor-pointer select-none"
+            >
+              <Repeat className="size-4 text-blue-500" />
+              Cobrança Recorrente (Mensalidade / Contrato Fixo)
+            </label>
           </div>
 
           <div className="space-y-1.5">

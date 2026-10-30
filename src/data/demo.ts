@@ -31,12 +31,15 @@ const CLIENT_NAMES = [
 ];
 
 export const PRODUCTS = [
+  "Landing Page",
+  "Site Institucional",
+  "E-commerce",
+  "Sistema Web Sob Medida",
+  "Gestão de Social Media",
+  "Gestão de Tráfego Pago",
   "Automação de Processos",
-  "Dashboard sob medida",
-  "Consultoria de IA",
-  "Integração de APIs",
-  "Setup de CRM",
-  "Manutenção mensal",
+  "Setup de CRM B2B",
+  "Manutenção Mensal"
 ];
 
 const now = new Date();
